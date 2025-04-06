@@ -21,9 +21,6 @@
 __attribute__((aligned(64))) uint64_t number_of_mmaped_memory_regions;
 __attribute__((aligned(64))) ring_buffer_entry *buf_ptr;
 
-//#define DEBUG_PRINT
-//#define TEST_ONLY_LOGGING_PART
-//#define PERSISTENCE_OPERATIONS
 const unsigned long pmem_file_size = (ring_buffer_size*sizeof(ring_buffer_entry)+32);
 
 bool is_a_memory_tag(char *msg){
@@ -79,14 +76,6 @@ ring_buffer  *ring_buffer_create_and_initialise(ring_buffer *ringBuffer){
                                        MAP_SHARED, fd, 0);
 
     assert(ringBuffer!= NULL);
-    /* create a pmem file and memory map it */
-    /*
-    if ((ringBuffer = pmem_map_file(RING_BUFFER_FILE_PATH, pmem_file_size, PMEM_FILE_CREATE, 0666,
-                                    &mapped_len, &is_pmem)) == NULL) {
-        perror("pmem_map_file");
-        exit(1);
-    }
-*/
     if(!recover){
 #ifdef DEBUG_RING_BUFFER
     printf("RB address: %lu, %p\n", (uint64_t)ringBuffer, ringBuffer);
@@ -129,15 +118,7 @@ ring_buffer  *ring_buffer_create_and_initialise(ring_buffer *ringBuffer){
     return ringBuffer;
 }
 
-void execute_flush(void *addr){
-    //TODO flush once we have a full cache line packed
-#ifdef PERSISTENCE_OPERATIONS
-    pmem_flush(addr, 64);
-#endif
-}
-
 ring_buffer *map_ring_buffer_file_to_correct_address(){
-    //int fd;
     if(access(RING_BUFFER_FILE_PATH, F_OK) != 0){
         fd = open(RING_BUFFER_FILE_PATH, O_RDWR | O_CREAT, 0666);
         assert(ftruncate(fd, pmem_file_size) != -1);
@@ -147,10 +128,6 @@ ring_buffer *map_ring_buffer_file_to_correct_address(){
     if(fd == -1){
         printf("Backend: ERROR opening rb file\n");
     }
-#ifdef DEBUG_RING_BUFFER
-    printf("Opened RB file\n");
-#endif
-     // READ THE MMAPING ADDRESS
     ring_buffer *ringBuffer = mmap(NULL, pmem_file_size, PROT_WRITE | PROT_READ,
                         MAP_SHARED, fd, 0);
     void *rbAddress = ringBuffer->producer_addr;
@@ -158,9 +135,6 @@ ring_buffer *map_ring_buffer_file_to_correct_address(){
     ringBuffer = mmap(rbAddress, pmem_file_size, PROT_WRITE | PROT_READ,
          MAP_FIXED | MAP_SHARED, fd, 0);
     assert(ringBuffer == rbAddress);
-#ifdef DEBUG_RING_BUFFER
-    printf("Backend: Ring buffered opened and mmaped\n");
-#endif
 
     return ringBuffer;
 }
@@ -180,13 +154,6 @@ ring_buffer *ring_buffer_open(bool init){
     global_local_tail = ringBuffer->remote_tail;
 
     global_local_head = ringBuffer->remote_head;
-#ifdef DEBUG_RING_BUFFER
-    printf("Producer rb addr: %p; consumer: %p\n", ringBuffer, ringBuffer->producer_addr);
-    printf("Tail: %lu Head: %lu\n", ringBuffer->remote_tail, ringBuffer->remote_head);
-#endif
-    //buf_ptr = ringBuffer->buffer;
-    //number_of_mmaped_memory_regions = ringBuffer->commit_metadata.numberOfRegions;
-
     return ringBuffer;
 }
 
@@ -194,101 +161,52 @@ void reset_mmaped_regions_counter(){
     number_of_mmaped_memory_regions = 0;
 }
 
-// *payload has to be a pointer to 16 byte struct or message
-// TODO change this method to do what it says (I think it does that anyway)
 void ring_buffer_enqueue_mmap_entry(ring_buffer *ringBuffer, ring_buffer_map_entry *ringBufferMapEntry, uint64_t *thread_local_head, uint64_t *thread_local_tail){
-#ifdef DEBUG_RING_BUFFER
-    printf("Enqueue mmap entry %lu\n",*thread_local_tail);
-#endif
     uint64_t nextTail = (*thread_local_tail + 1);
     if(nextTail == RING_BUFFER_SIZE){
         nextTail = 0;
     }
     while(nextTail == *thread_local_head){
         *thread_local_head = ringBuffer->remote_head;
-#ifdef DEBUG_RING_BUFFER
-        printf("Looping at index %lu\n",nextTail);
-#endif
     }
 
     char *start = (char *) (buf_ptr + *thread_local_tail);
     ring_buffer_map_entry *destination = (ring_buffer_map_entry *) start;
-    //ring_buffer_entry *ringBufferEntry = (ring_buffer_entry *)start;
+
 #ifdef DEBUG_RING_BUFFER
     printf("Copying\n");
 #endif
-
-    //memcpy(&destination->entry_type, (const void *) (bool) 1, 1);
-
     destination->addr = ringBufferMapEntry->addr;
-    //memcpy(start+1, &ringBufferMapEntry->addr, 8);
-
     destination->size = ringBufferMapEntry->size;
     destination->entry_type = ringBufferMapEntry->entry_type;
-    //memcpy(start+9, &ringBufferMapEntry->size, 8);
     pmem_flush(destination, 64);
-//#ifdef DEBUG_PRINT
-#ifdef DEBUG_RING_BUFFER
-    printf("Logging to index %lu\n",*thread_local_tail);
-#endif
-    //printf("FRONT END LOGGED: Addr: %p Payload: %s\n", ringBufferEntry->addr, ringBufferEntry->payload);
-//#endif
     *thread_local_tail = nextTail;
-
-
 }
 
 void ring_buffer_enqueue_redo_log_entry(ring_buffer *ringBuffer, void *addr,uint64_t *thread_local_head, uint64_t *thread_local_tail) {
-
-
     uint64_t nextTail = (*thread_local_tail + 1);
     if(nextTail == RING_BUFFER_SIZE){
         nextTail = 0;
     }
     while(nextTail == *thread_local_head){
         *thread_local_head = ringBuffer->remote_head;
-#ifdef DEBUG_RING_BUFFER
-        printf("Looping at index %lu\n",nextTail);
-#endif
     }
-#ifdef DEBUG_RING_BUFFER
-    printf("Logging redo entry: %lu\n",nextTail);
-#endif
-   // printf("redo log: l236\n");
     char *start = (char *) (buf_ptr + *thread_local_tail);
     ring_buffer_entry *ringBufferEntry = (ring_buffer_entry *)start;
     ringBufferEntry->entry_type = REDO_ENTRY;
     ringBufferEntry->addr = addr;
-    //memcpy(start+1, &addr, 8);
-   // printf("redo log: l240\n");
-#ifdef DEBUG_RING_BUFFER
-    printf("FRONT END ABOUT TO LOG : Addr: %p\n", ringBufferEntry->addr);
-#endif
-    //printf("FRONT END ABOUT TO LOG : Addr: %p\n", ringBufferEntry->addr);
     memcpy(ringBufferEntry->payload, addr, PAYLOAD_SIZE);
-//#ifdef DEBUG_PRINT
     pmem_flush(ringBufferEntry, 64);
-    //printf("Logging to index %lu value: %s\n",*thread_local_tail, ringBufferEntry->payload);
-   //
-//#endif
     *thread_local_tail = nextTail;
-    //pmem_flush(&ringBuffer->buffer[*thread_local_tail], 64);
-    //execute_flush(start);
-#ifdef DEBUG_RING_BUFFER
-    printf("Redo entry logged ok\n");
-#endif
 }
 
 void ring_buffer_commit_enqueued_entries(ring_buffer *ringBuffer, uint64_t *thread_local_head, uint64_t *thread_local_tail){
-
-    size_t persistLength;
-
     uint64_t nextTail = (*thread_local_tail + 1);
     if(nextTail == RING_BUFFER_SIZE){
         nextTail = 0;
     }
     while(nextTail == *thread_local_head){
-        *thread_local_head = ringBuffer->remote_head;
+        *thread_local_head = ringBuffer->last_persisted_head;
     }
     char *start = (char *) (buf_ptr + *thread_local_tail);
     ring_buffer_entry *ringBufferEntry = (ring_buffer_entry *)start;
@@ -304,9 +222,6 @@ void ring_buffer_commit_enqueued_entries(ring_buffer *ringBuffer, uint64_t *thre
     
     ringBuffer->last_persisted_tail = ringBuffer->remote_tail;
 }
-
-
-
 
 void ring_buffer_print_info(ring_buffer *ringBuffer){
     printf("RB info: remote_tail: %lu global_local_tail: %lu remote_head: %lu global_local_head: %lu\n",
