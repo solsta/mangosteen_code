@@ -34,27 +34,13 @@
 #define DR_MEMPROT_SHARED 0x80
 #define DR_MEMPROT_STACK 0x40
 
-//#define COLLECT_REDO_LOG_METRICS 1
-
 #ifdef COLLECT_REDO_LOG_METRICS
 unsigned long totalMemcpy;
 unsigned long totalPersist;
 #endif
 
 static ring_buffer *ringBuffer;
-// TODO try non aligned size
 
-
-
-
-
-
-
-
-
-
-
-/* Cross-instrumentation-phase data. */
 typedef struct {
     app_pc last_pc;
 } instru_data_t;
@@ -62,8 +48,8 @@ typedef struct {
 static size_t page_size;
 static client_id_t client_id;
 static app_pc code_cache;
-static void *mutex;            /* for multithread support */
-static uint64 global_num_refs; /* keep a global memory reference count */
+static void *mutex;    
+static uint64 global_num_refs;
 
 
 static void
@@ -121,7 +107,7 @@ int compare_uint64(const void *a, const void *b){
     if(*ai > *bi){
         return 1;
     }
-    printf("FOund duplicate where there should not be one!");
+    printf("Found duplicate where there should not be one!");
     assert(false);
     exit(1);
     return 0;
@@ -136,8 +122,6 @@ instrument_start(){
 #endif
     void *drcontext  = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
-
-    //_mm_sfence();
     data->combiner = 1;
 
 }
@@ -148,9 +132,6 @@ instrument_start(){
 static bool event_filter_syscall(void *drcontext, int sysnum) {
     if(instrument_args.state == FRONT_END_RECOVERY){
         per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
-        if(data->combiner == 0){
-            //return false;
-        }
     }
     if (sysnum == SYS_mmap ) { //|| sysnum == SYS_munmap
         return true;
@@ -159,23 +140,9 @@ static bool event_filter_syscall(void *drcontext, int sysnum) {
 }
 DR_EXPORT static void
 collect_mmaps(deferred_mmap_entries *destination){
-    //printf("in collect mmaps\n");
-
     void *drcontext  = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
-    //void *src = &data->deferredMmapEntries;
-    //printf("Got thread local data\n");
-    //printf("Number of deffered entries: %d\n", data->deferredMmapEntries.number_of_regions_in_this_batch);
     int index = data->deferredMmapEntries.number_of_regions_in_this_batch;
-    /*
-    while(index > 0){
-        index-=1;
-        printf("collected mmap %p with size: %lu\n",
-               data->deferredMmapEntries.transient_mmap_entries[index].addr,
-               data->deferredMmapEntries.transient_mmap_entries[index].size);
-    }
-     */
-//printf("About to copy\n");
     memcpy(destination, &data->deferredMmapEntries, sizeof (deferred_mmap_entries));
     _mm_sfence();
     data->deferredMmapEntries.number_of_regions_in_this_batch = 0;
@@ -206,9 +173,6 @@ static void event_post_syscall(void *drcontext, int sysnum) {
     }
 
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
-    if(data->skip_mmap == 1){
-        //return;
-    }
 
     if (data->lastSyscall.sysnum == SYS_mmap) {
 #ifdef DEBUG_INSTRUMENTATION
@@ -218,15 +182,13 @@ static void event_post_syscall(void *drcontext, int sysnum) {
             // In this case we use the returned address
             assert(dr_syscall_get_result(drcontext) != -1);
             data->lastSyscall.addr = (void *) dr_syscall_get_result(drcontext);
-            //return;
         }
-        // TODO move to method "Store mmap entry to rb"
         ring_buffer_map_entry ringBufferMapEntry;
         ringBufferMapEntry.addr = data->lastSyscall.addr;
         ringBufferMapEntry.size = data->lastSyscall.size;
         ringBufferMapEntry.entry_type = MMAP_ENTRY;
 
-        if(data->combiner == 0){ //&&
+        if(data->combiner == 0){
 //take rw lock
 
              while(true){
@@ -239,13 +201,12 @@ static void event_post_syscall(void *drcontext, int sysnum) {
                 }
                 }
             }
-
             ringBufferMapEntry.entry_type =TRANSIENT_MMAP_ENTRY;
         }
 #ifdef DEBUG_INSTRUMENTATION
-
+       printf("mmap addr %p of size: %lu, added\n",ringBufferMapEntry.addr, ringBufferMapEntry.size);
 #endif
-        printf("mmap addr %p of size: %lu, added\n",ringBufferMapEntry.addr, ringBufferMapEntry.size);
+       
        data->thread_local_head = get_global_head_value(ringBuffer);
        data->thread_local_tail = get_global_tail_value(ringBuffer);
 
@@ -256,8 +217,6 @@ static void event_post_syscall(void *drcontext, int sysnum) {
 #endif
         sset_global_head_value(data->thread_local_head,ringBuffer);
         set_global_tail_value(data->thread_local_tail,ringBuffer);
-
-
         mprotect(ringBufferMapEntry.addr, ringBufferMapEntry.size, PROT_WRITE | PROT_READ);
 
         if(ringBufferMapEntry.entry_type == TRANSIENT_MMAP_ENTRY){
@@ -290,9 +249,6 @@ commit_mmaps(int count, ring_buffer_map_entry *entries){
                                        &data->thread_local_tail);
         ring_buffer_commit_enqueued_entries(ringBuffer,&data->thread_local_head,&data->thread_local_tail);
 #endif
-
-        //data->combiner = 0;
-        //mprotect(&entries[i].addr, entries[i].size, PROT_WRITE | PROT_READ);
     }
 
     set_global_head_value(data->thread_local_head,ringBuffer);
@@ -325,17 +281,11 @@ instrumented_memcpy(void *dest, void *src, size_t size){
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
     bool exectute_memcpy = false;
     if(data->combiner == 1){
-        //_mm_sfence();
-//#ifdef MEMCPY_OVERWRITE
-        // if(size_of_copy == 100001){
             data->memcpyArray.array[data->memcpyArray.count].start = dest;
             data->memcpyArray.array[data->memcpyArray.count].end = dest+size;
-            // TODO store in thread local buffer and increment counter.
             data->memcpyArray.count++;
             exectute_memcpy = true;
         memcpy(dest,src,size);
-     //   }
-//#endif
     }
 }
 
@@ -360,18 +310,10 @@ instrument_stop()
 #endif
     data->thread_local_head = get_global_head_value(ringBuffer);
     data->thread_local_tail = get_global_tail_value(ringBuffer);
-
-    // LOG MEMCPY RANGES
-    //dr_fprintf(STDERR,"Elements after coalescing:\n");
     for(int i=0; i < data->memcpyArray.count; i++){
         char *start = data->memcpyArray.array[i].start;
         char *end = data->memcpyArray.array[i].end;
-
-        // TODO
-        // take algigned address
-        // create a loop and iterate over it and log to ring buffer
         int distance = end - start;
-        //dr_fprintf(STDERR, "el %d : %p-%p, len: %d\n", i, start, end, distance);
         for (int j=0; j < distance; j=j+PAYLOAD_SIZE){
 #ifdef LOG_TO_RING_BUFFER
             ring_buffer_enqueue_redo_log_entry(data->pmem_buffer,
@@ -384,12 +326,9 @@ instrument_stop()
     }
 
     collect_payload_and_store_to_pmem(data, true); // Change to no commit
-    // Commit here
-    //dr_mutex_unlock(mutex);
     *data->number_of_hash_set_entries = 0;
     overflowBuffer.size = 0;
     data->memcpyArray.count = 0;
-    //data->num_refs = 0;
 #ifdef DEBUG_INSTRUMENTATION
     dr_fprintf(STDERR, "INSTRUMENTATION STOPPED\n");
 #endif
@@ -402,7 +341,6 @@ static void reset_hash_set(){
     void *drcontext = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
     data->combiner = 0;
-    //_mm_sfence();
 #ifdef DEBUG_INSTRUMENTATION
     dr_fprintf(STDERR, "RESETTING HASH SET Length: %lu\n", data->hash_set_metadata.size*8);
 #endif
@@ -415,6 +353,7 @@ void free_mem_info(void *p)
 }
 
 static bool should_replace(const dr_mem_info_t *info) {
+    // Code copied from https://github.com/persimmon-project/persimmon
     app_pc base = info->base_pc;
     if (dr_memory_is_dr_internal(base)) {
 #ifdef DEBUG_INSTRUMENTATION
@@ -436,9 +375,6 @@ static bool should_replace(const dr_mem_info_t *info) {
 #endif
         return false;
     }
-
-    // FIXME(zhangwen): assumes that memory protection never changes
-    //      (i.e., a non-writeable page will remain that way).
     if (!(info->prot & DR_MEMPROT_WRITE)) {
 #ifdef DEBUG_INSTRUMENTATION
         dr_fprintf(STDERR, "[should_replace] skipping no-write memory:\t%p\n", base);
@@ -464,32 +400,14 @@ static bool should_replace(const dr_mem_info_t *info) {
 #endif
         return false;
     }
-
-    // Hopefully this assertion passes, because I don't know how to deal with "pretend write" pages (which should only
-    // cover the executable pages?)
     DR_ASSERT(!(info->prot & DR_MEMPROT_PRETEND_WRITE));
-    // TODO(zhangwen): handle write-only pages??!
     DR_ASSERT(info->prot & DR_MEMPROT_READ);
-
-#if 0
-    auto psm_log_base = reinterpret_cast<app_pc>(instrument_args.psm_log_base);
-    if (base <= psm_log_base && info->size > static_cast<size_t>(psm_log_base - base)) {
-        // Skip the PSM log area.
-        DR_ASSERT(base == psm_log_base);
-#if INSTRUMENT_LOGGING
-        dr_fprintf(STDERR, "[should_replace] skipping PSM log:\t%p\n", base);
-#endif
-        return false;
-    }
-#endif
-
     return true;
 }
 
 static void synchronize_address_space(region_table *regionTable, bool initial){
-
+    // Part of the code in this method is copied from https://github.com/persimmon-project/persimmon
     drvector_t to_replace; // Vector (of `dr_mem_info_t *`) of memory regions to replace.
-    // For peace of mind, we avoid replacing memory regions while iterating through them.
     {
         bool success = drvector_init(&to_replace, /* initial_capacity */ 10, /* synch */ false,
         free_mem_info);
@@ -503,24 +421,14 @@ static void synchronize_address_space(region_table *regionTable, bool initial){
 
             if (initial) {
 
-                //if(info.size != 131072 && info.size != 126976 ) {
                 void *info_mem = dr_global_alloc(sizeof(dr_mem_info_t));
                 memcpy(info_mem, &info, sizeof(dr_mem_info_t));
                 dr_fprintf(STDERR, "Replacing region %p with size : %d\n", info.base_pc, info.size);
 #ifdef DEBUG_INSTRUMENTATION
                 dr_fprintf(STDERR, "Replacing region %p with size : %d\n", info.base_pc, info.size);
 #endif
-		//if(info.base_pc > 123145302310912){
 			bool success = drvector_append(&to_replace, info_mem);
                         DR_ASSERT(success);
-		//}
-                //}
-                if (info.size == 2621472) {
-#ifdef DEBUG_INSTRUMENTATION
-                    dr_fprintf(STDERR,"ERROR tried to remap ring buffer\n");
-#endif
-                    exit(1);
-                }
 
             } else{
                     bool missing_from_table = true;
@@ -536,34 +444,7 @@ static void synchronize_address_space(region_table *regionTable, bool initial){
                         regionTable->newEntries[regionTable->number_of_new_entries].address = pc;
                         regionTable->newEntries[regionTable->number_of_new_entries].mmap_size = info.size;
                         regionTable->number_of_new_entries++;
-
-
-                        /*
-                        printf("found missing mmap %p of size: %zu\n", pc, info.size);
-                        ring_buffer_map_entry ringBufferMapEntry;
-                        ringBufferMapEntry.addr = pc;
-                        ringBufferMapEntry.size = info.size;
-                        ringBufferMapEntry.entry_type = MMAP_ENTRY;
-                        void *drcontext = dr_get_current_drcontext();
-                        per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
-
-                        data->thread_local_head = get_global_head_value();
-                        data->thread_local_tail = get_global_tail_value();
-
-
-
-
-#ifdef LOG_TO_RING_BUFFER
-                        ring_buffer_enqueue_mmap_entry(data->pmem_buffer, &ringBufferMapEntry, &data->thread_local_head,
-                                                       &data->thread_local_tail);
-                        ring_buffer_commit_enqueued_entries(data->pmem_buffer, &data->thread_local_head, &data->thread_local_tail);
-#endif
-                        set_global_head_value(data->thread_local_head);
-                        set_global_tail_value(data->thread_local_tail);
-                         */
                     }
-
-
             }
 
         }
@@ -597,12 +478,6 @@ static void synchronize_address_space(region_table *regionTable, bool initial){
             printf("Requesting to mmap : %p with size: %lu\n", infop->base_pc, infop->size);
 #endif
 	    void *destination = mmap(NULL, infop->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-            //void *destination = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
-            //                         MAP_SHARED_VALIDATE | MAP_SYNC, fd, 0);
-
-	    //void *destination = mmap(NULL, infop->size, infop->prot,
-            //                          MAP_SYNC | MAP_ANONYMOUS, -1, 0);
-	    //void *destination =  mmap(NULL, infop->size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	     if (destination == MAP_FAILED) {
                  printf("MMAP FAILED\n");
@@ -619,28 +494,13 @@ printf("munmap scratch is ok\n");
             void *returnedMmapAddress = mmap(infop->base_pc, infop->size, infop->prot,
                                              MAP_FIXED | MAP_SHARED, fd, 0);
 
-
-	    //void *returnedMmapAddress = mmap(NULL, infop->size, infop->prot,MAP_FIXED| MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
 #ifdef DEBUG_INSTRUMENTATION
             dr_fprintf(STDERR, "Returned address: %p\n", returnedMmapAddress);
 #endif
             dr_fprintf(STDERR, "Returned address: %p\n", returnedMmapAddress);
-
-//            if(returnedMmapAddress != infop->base_pc){
-//                dr_fprintf(STDERR, "skipping strage region %p\n", infop->base_pc);
-//            } else{
             region_table_add_region_record(instrument_args.region_table, returnedMmapAddress, infop->size);
-printf("add region is ok\n");
-//            }
-            //assert(returnedMmapAddress == infop->base_pc);
         }
-
-
-        // OPEN RING BUFFER AND READ ALL THE ENTRIES for mmap?
-
         region_table_commit(instrument_args.region_table);
-
 
         bool success = drvector_delete(&to_replace); // This frees all elements.
         DR_ASSERT(success);
@@ -663,7 +523,7 @@ static void remap_address_space(region_table *regionTable){
     }
 
     for(uint64_t i = 0; i < regionTable->number_of_entries; i++){
-        if(true) { //regionTable->regionTable[i].mmap_size != 8400896
+        if(true) { 
             int prot = PROT_READ | PROT_WRITE;
             int flags = MAP_FIXED | MAP_SHARED_VALIDATE | MAP_SYNC;
 #ifdef DEBUG_INSTRUMENTATION
@@ -696,15 +556,12 @@ static void remap_address_space(region_table *regionTable){
 
 
 void copyDataFromPersistentMemory(){
-    //Wait for all threads to initialise?
-    //ringBuffer = ring_buffer_create_and_initialise(ringBuffer);
-    //per_thread_t *data = drmgr_get_tls_field(dr_get_current_drcontext(),tls_index);
-    //data->skip_mmap = 1;
+    
 #ifdef DEBUG_INSTRUMENTATION
     printf("copy_data_from_pmem start\n");
 #endif
     region_table *regionTable = instrument_args.region_table;
-    // TODO WHY COMMITED N OF ENTRIES NOW IS 0 ON RB SIDE?
+    
     uint64_t number_of_entries = regionTable->number_of_entries;
     for(uint64_t i = 0; i < number_of_entries; i++){
 #ifdef DEBUG_INSTRUMENTATION
@@ -723,9 +580,7 @@ void copyDataFromPersistentMemory(){
 #ifdef DEBUG_INSTRUMENTATION
         printf("Opening file: %s which corresponds to region %p with size: %lu\n",fileName, regionTableEntry->address, regionTableEntry->mmap_size);
 #endif
-        // TODO check this is exception regionTableEntry->mmap_size ==8400896, most likely due to server thread?
-        // NOW find out which region is the problem
-        if(true) { //regionTableEntry->mmap_size != 8400896
+        if(true) {
             void *source = mmap(NULL, regionTableEntry->mmap_size, PROT_READ | PROT_WRITE,
                                 MAP_SHARED_VALIDATE | MAP_SYNC, fd, 0);
 #ifdef DEBUG_INSTRUMENTATION
@@ -752,11 +607,9 @@ void copyDataFromPersistentMemory(){
             dr_fprintf(STDERR, "DR recovery Skipping thread related region\n");
         }
     }
-    //data->skip_mmap = 0;
 #ifdef DEBUG_INSTRUMENTATION
     printf("copy_data_from_pmem done\n");
 #endif
-    //ringBuffer = ring_buffer_open();
 }
 
 void commit_rb_entries(){
@@ -764,11 +617,6 @@ void commit_rb_entries(){
     printf("Committing to RB\n");
 #endif
     ring_buffer_commit_enqueued_entries(ringBuffer, &global_local_head, &global_local_tail);
-    /*
-    if(instrument_args.state == FRONT_END_INITIAL){
-        dr_app_stop_and_cleanup();
-    }
-*/
 }
 
 
@@ -809,8 +657,6 @@ dr_client_main(client_id_t id, int argc, const char *argv[])
             dr_annotation_register_call("commit_rb_entries", commit_rb_entries, false, 0,
                                         DR_ANNOTATION_CALL_TYPE_FASTCALL);
 
-            // TODO configure threads? - No
-            // TODO Configure ring buffer - Yes
             ringBuffer = instrument_args.ringBuffer;
             page_size = dr_page_size();
             drmgr_init();
@@ -840,15 +686,6 @@ dr_client_main(client_id_t id, int argc, const char *argv[])
 #endif
         printf("about to initialisese 746\n");
         } else{
-/*
-        if(instrument_args.state == FRONT_END_INITIAL){
-            ringBuffer = ring_buffer_create_and_initialise(ringBuffer);
-            assert(ringBuffer!=NULL);
-        } else{
-            ringBuffer = ring_buffer_create_and_initialise(ringBuffer);
-            //regionTable->number_of_entries = ringBuffer->commit_metadata.numberOfRegions;
-        }
-*/
 ringBuffer = instrument_args.ringBuffer;
 #ifdef DEBUG_INSTRUMENTATION
         dr_fprintf(STDERR,"DR main rb initialized: head %lu, tail %lu\n", ringBuffer->remote_head, ringBuffer->remote_tail);
@@ -938,8 +775,7 @@ event_exit()
                       "  saw %llu memory references\n",
                       global_num_refs);
     DR_ASSERT(len > 0);
-    //NULL_TERMINATE_BUFFER(msg);
-    //DISPLAY_STRING(msg);
+
 #endif /* SHOW_RESULTS */
     code_cache_exit();
 
@@ -1012,18 +848,12 @@ event_thread_exit(void *drcontext)
     dr_thread_free(drcontext, data, sizeof(per_thread_t));
 }
 
-
-
-/* we transform string loops into regular loops so we can more easily
-* monitor every memory reference they make
- */
 static dr_emit_flags_t
 event_bb_app2app(void *drcontext, void *tag, instrlist_t *bb, bool for_trace,
                  bool translating)
 {
     if (!drutil_expand_rep_string(drcontext, bb)) {
         DR_ASSERT(false);
-        /* in release build, carry on: we'll just miss per-iter refs */
     }
     if (!drx_expand_scatter_gather(drcontext, bb, NULL)) {
         DR_ASSERT(false);
@@ -1052,16 +882,9 @@ event_bb_insert(void *drcontext, void *tag, instrlist_t *bb, instr_t *where,
 
     threadData = drmgr_get_tls_field(drcontext, tls_index);
 
-    if(threadData->combiner == 0){
-        //return DR_EMIT_DEFAULT;
-    }
-
     int i;
     instru_data_t *data = (instru_data_t *)user_data;
-    /* Use the drmgr_orig_app_instr_* interface to properly handle our own use
-     * of drutil_expand_rep_string() and drx_expand_scatter_gather() (as well
-     * as another client/library emulating the instruction stream).
-     */
+    
     instr_t *instr_fetch = drmgr_orig_app_instr_for_fetch(drcontext);
     if (instr_fetch != NULL)
         data->last_pc = instr_get_app_pc(instr_fetch);
@@ -1081,16 +904,8 @@ event_bb_insert(void *drcontext, void *tag, instrlist_t *bb, instr_t *where,
             opnd_t ref = instr_get_dst(instr_operands, i);
             if (opnd_is_memory_reference(ref)) {
                 if (opnd_is_base_disp(ref) && opnd_get_base(ref) == DR_REG_XSP) {
-                    // Assume that this write destination is on the stack.  Ignore!
                     continue;
                 }
-                               /* TODO investigate if this is required
-                               if (instr_has_rep_string(instr)) {
-                                   // Expand the repeat string opcode
-                                   instrlist_t *expanded_list = instrlist_create(drcontext);
-                                   drutil_expand_rep_string(drcontext, instr, expanded_list);
-                               }
-                               */
                 instrument_mem(drcontext, bb, where, last_pc, instr_operands, i, true, ref);
             }
         }
@@ -1140,29 +955,14 @@ wrap_pre(void *wrapcxt, DR_PARAM_OUT void **user_data)
 
 static void
 wrap_post(void *wrapcxt, void *user_data)
-//wrap_post()
 {
-    /*
-void *drcontext  = dr_get_current_drcontext();
-per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
-bool execute_memcpy = (bool)user_data;
-if(execute_memcpy){
-   dr_printf("executing memcpy in post!\n");
-    //char* src =
-    //memcpy(dst,src,size_of_copy);
-    //drwrap_set_arg(wrapcxt, 2, 0);
-}
-//dr_printf("memcpy wrapper called post!\n");
-*/
 }
 
 static void
 memtrace(void *drcontext)
 {
-    //TODO reimplement this for hash set
 }
 
-/* clean_call dumps the memory reference info to the log file */
 static void
 clean_call(void)
 {
@@ -1203,20 +1003,10 @@ code_cache_exit(void)
     dr_nonheap_free(code_cache, page_size);
 }
 
-/*
-* instrument_mem is called whenever a memory reference is identified.
-* It inserts code before the memory reference to to fill the memory buffer
-* and jump to our own code cache to call the clean_call when the buffer is full.
- */
-/* COPY payload
-
-*/
-
 void print_combiner_value(int value){
     per_thread_t *data;
 
     data = drmgr_get_tls_field(dr_get_current_drcontext(), tls_index);
-    //dr_fprintf(STDERR,"GValue in register: %d; COMBINER STATE: %d\n", value, data->combiner);
 }
 
 void print_when_logging(uintptr_t addr){
@@ -1224,9 +1014,6 @@ void print_when_logging(uintptr_t addr){
 
     data = drmgr_get_tls_field(dr_get_current_drcontext(), tls_index);
     char payload[32];
-    //void *address = (void *) addr;
-    //memcpy(&payload, address, 32);
-    //dr_fprintf(STDERR,"GOING TO LOG Addr: %p; COMBINER STATE: %d payload: %s\n", addr, data->combiner, payload);
 }
 
 void print_progress_main(void){
@@ -1259,24 +1046,10 @@ instrument_mem(void *drcontext, instrlist_t *ilist, instr_t *where, app_pc pc,
     uint size = drutil_opnd_mem_size_in_bytes(original_opnd, instr);
     assemblyArgs.write_size = size;
 
-
-
-
-    //reg_id_t reg_storing_destination, reg_storing_hash_set_pointer, range, rax, value_at_index, rsp;//,
     drvector_t allowed;
     per_thread_t *data;
 
     data = drmgr_get_tls_field(drcontext, tls_index);
-
-    if(data->combiner == 0){
-        //return ;
-    }
-
-
-
-
-    //TODO Check if any registers can be reused within the code
-    // TODO INVESTIGATE IF THE BELOW requires DR_REG_XCX
     drreg_init_and_fill_vector(&allowed, false);
     drreg_set_vector_entry(&allowed, DR_REG_XCX, true);
     if (drreg_reserve_register(drcontext, ilist, where, NULL, &assemblyArgs.reg_storing_hash_set_pointer) !=
@@ -1284,7 +1057,7 @@ instrument_mem(void *drcontext, instrlist_t *ilist, instr_t *where, app_pc pc,
         DR_ASSERT(false);
     }
     drvector_delete(&allowed);
-/***/
+
 
     drreg_init_and_fill_vector(&allowed, false);
     drreg_set_vector_entry(&allowed, DR_REG_RSP, true);
@@ -1293,7 +1066,7 @@ instrument_mem(void *drcontext, instrlist_t *ilist, instr_t *where, app_pc pc,
         DR_ASSERT(false);
     }
     drvector_delete(&allowed);
-/***/
+
     if( drreg_reserve_register(drcontext, ilist, where, NULL, &assemblyArgs.rax) != DRREG_SUCCESS) {
         DR_ASSERT(false);
     }
@@ -1320,15 +1093,9 @@ instrument_mem(void *drcontext, instrlist_t *ilist, instr_t *where, app_pc pc,
         DR_ASSERT_MSG(false, "failed to reserve aflags");
     }
 
-
-    //dr_insert_clean_call(drcontext, ilist, where, print_progress_main, false,
-    //                     0);
-
 #ifdef USE_DEDUPLICATION_BUFFER
     store_address_in_hash_set(&assemblyArgs);
 #else
-    _mm_sfence();
-    //store_address_in_hash_set(&assemblyArgs);
     store_address_in_buffer(&assemblyArgs);
 #endif
     if (drreg_unreserve_aflags(drcontext, ilist, where) != DRREG_SUCCESS) {
