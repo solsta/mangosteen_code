@@ -89,7 +89,7 @@ void initialise_mangosteen(mangosteen_args *mangosteenArgs) {
 	    printf("called init mangosteen \n");
     if(imangosteen_initialized ){
 	    printf("Initializing thread\n");
-	    exit(1);
+	    //exit(1);
 	    mangosteen_initialize_thread();
     } else {
 

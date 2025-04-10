@@ -1,3 +1,5 @@
+#include "../../mangosteen_instrumentation.h"
+#include "../../flat_combining/dr_annotations.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +16,13 @@ typedef struct {
     Node* rear;
     size_t payload_size;
 } Queue;
+
+typedef struct QueueCommand {
+    char cmdType;
+    char *valueToStore;
+    char *retrievedValue;
+    Queue *queue;
+} QueueCommand;
 
 // Create a new queue with specified payload size
 Queue* createQueue(size_t payload_size) {
@@ -74,7 +83,7 @@ char* dequeue(Queue* q) {
     }
 
     strncpy(result, temp->data, q->payload_size);
-
+    //fprintf(stderr, "Dequing: %s\n", result);
     q->front = q->front->next;
     if (q->front == NULL) {
         q->rear = NULL;
@@ -98,28 +107,78 @@ void freeQueue(Queue* q) {
     free(q);
 }
 
+bool isReadOnly(void *opaquePtr){
+    return false;
+}
+
+void processRequest(void *opaquePtr){
+    QueueCommand *queueCommand = (QueueCommand*) opaquePtr;
+    if(queueCommand->cmdType == 'e'){
+        enqueue(queueCommand->queue, queueCommand->valueToStore);
+    } else if(queueCommand->cmdType == 'd'){
+        queueCommand->retrievedValue = dequeue(queueCommand->queue);
+    } else{
+        fprintf(stderr, "Uknown command type in processRequest\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void *runBenchmarkThread(void *arg){
+	printf("In worker thread\n");
+
+    char *entry = "abcdefghijklmnop";
+    QueueCommand *queueCommand = malloc(sizeof(QueueCommand));
+    queueCommand->cmdType = 'e';
+    queueCommand->valueToStore = entry;
+    queueCommand->queue = (Queue*) arg;
+
+    clientCmd(queueCommand);
+    queueCommand->cmdType = 'd';
+
+    
+    clientCmd(queueCommand);
+    printf("Dequeued: %s\n", queueCommand->retrievedValue);
+    free(queueCommand->retrievedValue);
+    free(queueCommand->valueToStore);
+    free(queueCommand);
+    printf("thread done\n");
+    return NULL;
+}
+
+void *initAndRunBenchMarkThread(void *arg){
+    mangosteen_args mangosteenArgs;
+    mangosteenArgs.isReadOnly = &isReadOnly;
+    mangosteenArgs.processRequest = &processRequest;
+    mangosteenArgs.mode = MULTI_THREAD;
+    initialise_mangosteen(&mangosteenArgs);
+    runBenchmarkThread(arg);
+}
+
 int main() {
+    int number_of_threads =1;
     size_t payload_size = 64;
     Queue* q = createQueue(payload_size);
 
+    //Mangosteen initialization
+    mangosteen_args mangosteenArgs;
+    mangosteenArgs.isReadOnly = &isReadOnly;
+    mangosteenArgs.processRequest = &processRequest;
+    mangosteenArgs.mode = MULTI_THREAD;
 
-    char* msg = dequeue(q);
-    printf("Dequeued: %s\n", msg);
-    free(msg);
+    initialise_mangosteen(&mangosteenArgs);
+    printf("Mangosteen has initialized\n");
 
-
-    enqueue(q, "Message one");
-    enqueue(q, "Another message that's a bit longer");
-    enqueue(q, "Short");
-
-    msg = dequeue(q);
-    printf("Dequeued: %s\n", msg);
-    free(msg);
-
-    msg = dequeue(q);
-    printf("Dequeued: %s\n", msg);
-    free(msg);
+    pthread_t threads[number_of_threads];
+    for (int i = 0; i < number_of_threads; i++) {
+        pthread_create(&threads[i], NULL, initAndRunBenchMarkThread, q);
+    }
+    
+    for (int i = 0; i < number_of_threads; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
     freeQueue(q);
+
+    //wait for thread
     return 0;
 }

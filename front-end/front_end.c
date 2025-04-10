@@ -20,6 +20,7 @@
 int global_thread_count = 0;
 
 void mangosteen_initialize_thread(){
+    printf("About to take a mutex \n");
     // TODO add proper initialization
     pthread_mutex_lock(&mutex);
     int tid = gettid();
