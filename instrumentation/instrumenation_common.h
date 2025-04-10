@@ -210,8 +210,8 @@ static void collect_payload_and_store_to_pmem(per_thread_t *data, bool commit)
     printf("Head: %lu tail: %lu\n",data->thread_local_head, data->thread_local_tail);
     printf("Committed\n");
 #endif
-        set_global_head_value(data->thread_local_head);
-        set_global_tail_value(data->thread_local_tail);
+        set_global_head_value(data->thread_local_head,data->pmem_buffer );
+        set_global_tail_value(data->thread_local_tail, data->pmem_buffer);
 
 #endif
 

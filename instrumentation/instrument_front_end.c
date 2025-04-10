@@ -215,7 +215,7 @@ static void event_post_syscall(void *drcontext, int sysnum) {
                                        &data->thread_local_tail);
         ring_buffer_commit_enqueued_entries(data->pmem_buffer, &data->thread_local_head, &data->thread_local_tail);
 #endif
-        sset_global_head_value(data->thread_local_head,ringBuffer);
+        set_global_head_value(data->thread_local_head,ringBuffer);
         set_global_tail_value(data->thread_local_tail,ringBuffer);
         mprotect(ringBufferMapEntry.addr, ringBufferMapEntry.size, PROT_WRITE | PROT_READ);
 
