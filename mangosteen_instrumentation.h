@@ -37,6 +37,7 @@ typedef struct serialized_app_command {
     void *arg2;
     void *arg3;
     bool response;
+    void *responsePtr;
     char serialized_response[32];
     int key;
     //uint64_t *argsBuff;

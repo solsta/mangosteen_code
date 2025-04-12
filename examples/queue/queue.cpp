@@ -1,12 +1,16 @@
 #include "../../mangosteen_instrumentation.h"
 #include "../../flat_combining/dr_annotations.h"
+#include <jemalloc/jemalloc.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+
+#define SM_OP_ENQUEUE 0
+#define SM_OP_DEQUEUE 1
 
 // Node structure with dynamically allocated payload
 typedef struct Node {
-    char* data;
+    int id;
+    char data[64];
     struct Node* next;
 } Node;
 
@@ -48,14 +52,8 @@ void enqueue(Queue* q, const char* str) {
         fprintf(stderr, "Failed to allocate memory for node\n");
         exit(EXIT_FAILURE);
     }
-
-    newNode->data = (char*)malloc(q->payload_size);
-    if (!newNode->data) {
-        fprintf(stderr, "Failed to allocate memory for payload\n");
-        exit(EXIT_FAILURE);
-    }
-
-    strncpy(newNode->data, str, q->payload_size - 1);
+    newNode->id = 1;
+    memcpy(newNode->data, str, q->payload_size - 1);
     newNode->data[q->payload_size - 1] = '\0';
     newNode->next = NULL;
 
@@ -67,32 +65,31 @@ void enqueue(Queue* q, const char* str) {
     }
 }
 
+char response[64];
+
 // Dequeue and return a copy of the data
-char* dequeue(Queue* q) {
+Node* dequeue(Queue* q) {
+    fprintf(stderr, "Deque start\n");
     if (isEmpty(q)) {
-        char *responseMessage = malloc(64);
-        strncpy(responseMessage, "Queue is empty\n", strlen("Queue is empty\n"));
-        return responseMessage;
+        //strncpy(response, "Queue is empty\n", strlen("Queue is empty\n"));
+        return NULL;
     }
+    fprintf(stderr, "Queue is not empty\n");
+    fprintf(stderr, "Dequing: %d\n", q->front->id);
+    fprintf(stderr, "Dequing: %s\n", q->front->data);
+    Node* responceNode = q->front;
+    //strncpy(response, q->front->data, q->payload_size);
+    
 
-    Node* temp = q->front;
-    char* result = (char*)malloc(q->payload_size);
-    if (!result) {
-        fprintf(stderr, "Failed to allocate memory for return payload\n");
-        exit(EXIT_FAILURE);
-    }
-
-    strncpy(result, temp->data, q->payload_size);
-    //fprintf(stderr, "Dequing: %s\n", result);
     q->front = q->front->next;
     if (q->front == NULL) {
         q->rear = NULL;
     }
 
-    free(temp->data);
-    free(temp);
+    //free(temp->data);
+    //free(temp);
 
-    return result;
+    return responceNode;
 }
 
 // Free the queue and all nodes
@@ -107,41 +104,44 @@ void freeQueue(Queue* q) {
     free(q);
 }
 
-bool isReadOnly(void *opaquePtr){
+bool isReadOnly(serialized_app_command *serializedAppCommand){
     return false;
 }
 
-void processRequest(void *opaquePtr){
-    QueueCommand *queueCommand = (QueueCommand*) opaquePtr;
-    if(queueCommand->cmdType == 'e'){
-        enqueue(queueCommand->queue, queueCommand->valueToStore);
-    } else if(queueCommand->cmdType == 'd'){
-        queueCommand->retrievedValue = dequeue(queueCommand->queue);
+void processRequest(serialized_app_command *serializedAppCommand){
+
+    Queue *q = static_cast<Queue*>(serializedAppCommand->arg1);
+
+    if(serializedAppCommand->op_type == SM_OP_ENQUEUE){
+        char *payload = static_cast<char*>(serializedAppCommand->arg2);
+        enqueue(q, payload);
+    } else if(serializedAppCommand->op_type == SM_OP_DEQUEUE){
+        serializedAppCommand->responsePtr = dequeue(q);
     } else{
-        fprintf(stderr, "Uknown command type in processRequest\n");
+        printf("Unknown command\n");
         exit(EXIT_FAILURE);
     }
 }
 
 void *runBenchmarkThread(void *arg){
-	printf("In worker thread\n");
+    Queue *q = static_cast<Queue*>(arg);
 
+    serialized_app_command serializedAppCommand;
+
+
+    serializedAppCommand.op_type = SM_OP_ENQUEUE;
+    serializedAppCommand.arg1 = q;
     char *entry = "abcdefghijklmnop";
-    QueueCommand *queueCommand = malloc(sizeof(QueueCommand));
-    queueCommand->cmdType = 'e';
-    queueCommand->valueToStore = entry;
-    queueCommand->queue = (Queue*) arg;
+    serializedAppCommand.arg2 = entry;
 
-    clientCmd(queueCommand);
-    queueCommand->cmdType = 'd';
+    clientCmd(&serializedAppCommand);
 
-    
-    clientCmd(queueCommand);
-    printf("Dequeued: %s\n", queueCommand->retrievedValue);
-    free(queueCommand->retrievedValue);
-    free(queueCommand->valueToStore);
-    free(queueCommand);
-    printf("thread done\n");
+    serializedAppCommand.op_type = SM_OP_DEQUEUE;
+
+    clientCmd(&serializedAppCommand);
+    Node *responseNode = static_cast<Node*>(serializedAppCommand.responsePtr);
+    printf("Thread dequeued: %s\n",responseNode->data);
+
     return NULL;
 }
 
@@ -167,7 +167,16 @@ int main() {
 
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
+    printf("About to dequeue\n");
+    printf("In the queue: %s", dequeue(q));
+/*
+    instrument_start();
+    char *str = "abcdefg\n";
+    enqueue(q,str);
 
+    instrument_stop();
+*/
+    
     pthread_t threads[number_of_threads];
     for (int i = 0; i < number_of_threads; i++) {
         pthread_create(&threads[i], NULL, initAndRunBenchMarkThread, q);
@@ -178,7 +187,5 @@ int main() {
     }
 
     freeQueue(q);
-
-    //wait for thread
     return 0;
 }
