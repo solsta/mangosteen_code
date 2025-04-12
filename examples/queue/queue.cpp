@@ -69,13 +69,13 @@ char response[64];
 
 // Dequeue and return a copy of the data
 Node* dequeue(Queue* q) {
-    fprintf(stderr, "Deque start\n");
+    //fprintf(stderr, "Deque start\n");
     if (isEmpty(q)) {
         //strncpy(response, "Queue is empty\n", strlen("Queue is empty\n"));
         return NULL;
     }
-    fprintf(stderr, "Queue is not empty\n");
-    fprintf(stderr, "Dequing: %d\n", q->front->id);
+    //fprintf(stderr, "Queue is not empty\n");
+    //fprintf(stderr, "Dequing: %d\n", q->front->id);
     fprintf(stderr, "Dequing: %s\n", q->front->data);
     Node* responceNode = q->front;
     //strncpy(response, q->front->data, q->payload_size);
@@ -125,22 +125,24 @@ void processRequest(serialized_app_command *serializedAppCommand){
 
 void *runBenchmarkThread(void *arg){
     Queue *q = static_cast<Queue*>(arg);
-
-    serialized_app_command serializedAppCommand;
-
-
-    serializedAppCommand.op_type = SM_OP_ENQUEUE;
-    serializedAppCommand.arg1 = q;
     char *entry = "abcdefghijklmnop";
-    serializedAppCommand.arg2 = entry;
+    instrument_start();
+    enqueue(q, entry);
+    /*
+    serialized_app_command *serializedAppCommand = (serialized_app_command*) malloc(sizeof(serialized_app_command));
+    serializedAppCommand->op_type = SM_OP_ENQUEUE;
+    serializedAppCommand->arg1 = q;
+    char *entry = "abcdefghijklmnop";
+    serializedAppCommand->arg2 = entry;
+    */
+    instrument_stop();
+    //clientCmd(serializedAppCommand);
 
-    clientCmd(&serializedAppCommand);
+   //serializedAppCommand->op_type = SM_OP_DEQUEUE;
 
-    serializedAppCommand.op_type = SM_OP_DEQUEUE;
-
-    clientCmd(&serializedAppCommand);
-    Node *responseNode = static_cast<Node*>(serializedAppCommand.responsePtr);
-    printf("Thread dequeued: %s\n",responseNode->data);
+    //clientCmd(&serializedAppCommand);
+    //Node *responseNode = static_cast<Node*>(serializedAppCommand.responsePtr);
+   // printf("Thread dequeued: %s\n",responseNode->data);
 
     return NULL;
 }
@@ -149,7 +151,7 @@ void *initAndRunBenchMarkThread(void *arg){
     mangosteen_args mangosteenArgs;
     mangosteenArgs.isReadOnly = &isReadOnly;
     mangosteenArgs.processRequest = &processRequest;
-    mangosteenArgs.mode = MULTI_THREAD;
+    mangosteenArgs.mode = SINGLE_THREAD;
     initialise_mangosteen(&mangosteenArgs);
     runBenchmarkThread(arg);
 }
@@ -169,13 +171,6 @@ int main() {
     printf("Mangosteen has initialized\n");
     printf("About to dequeue\n");
     printf("In the queue: %s", dequeue(q));
-/*
-    instrument_start();
-    char *str = "abcdefg\n";
-    enqueue(q,str);
-
-    instrument_stop();
-*/
     
     pthread_t threads[number_of_threads];
     for (int i = 0; i < number_of_threads; i++) {

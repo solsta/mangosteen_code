@@ -1,6 +1,6 @@
 #cmake_minimum_required(VERSION 3.16.3)
 #project(mangosteen_local_example C)
-#add_compile_options(-fPIC -Wall -Wextra -Wno-uninitialized -Wno-unused-parameter -Wl,-zdefs -O1)
+add_compile_options(-fPIC -Wall -Wextra -Wno-uninitialized -Wno-unused-parameter -Wl,-zdefs -O1)
 
 #set(CMAKE_C_STANDARD 11)
 link_libraries(jemalloc)

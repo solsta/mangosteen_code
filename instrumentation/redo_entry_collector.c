@@ -57,10 +57,6 @@ void increment_entry_counter(assembly_args *assemblyArgs){
     opnd2 = opnd_create_reg(assemblyArgs->counter_pointer_reg);
     assemblyArgs->instr = INSTR_CREATE_mov_st(assemblyArgs->drcontext, opnd1, opnd2);
     instrlist_meta_preinsert(assemblyArgs->ilist, assemblyArgs->where, assemblyArgs->instr);
-#ifdef DEBUG_INSTRUMENTATION
-    dr_insert_clean_call(assemblyArgs->drcontext, assemblyArgs->ilist, assemblyArgs->where, print_reg_values, false, 2,
-                                 opnd_create_reg(assemblyArgs->rsp), opnd_create_reg(assemblyArgs->counter_pointer_reg))
-#endif
 }
 
 void load_counter_in_register(assembly_args *assemblyArgs){
@@ -85,10 +81,7 @@ void check_combiner_state(assembly_args *assemblyArgs){
     //opnd2 = OPND_CREATE_MEMPTR(reg_storing_hash_set_pointer, offsetof(per_thread_t, hash_set_entries));
     instr_t *load_combiner_value = INSTR_CREATE_mov_ld(assemblyArgs->drcontext, opnd1, opnd2);
     instrlist_meta_preinsert(assemblyArgs->ilist, assemblyArgs->where, load_combiner_value);
-#ifdef DEBUG_INSTRUMENTATION
-    dr_insert_clean_call(drcontext, ilist, where, print_combiner_value, false, 1,
-                         opnd_create_reg(value_at_index));
-#endif
+
     opnd1 = opnd_create_reg(assemblyArgs->value_at_index);
     opnd2 = OPND_CREATE_INT32(0);
     assemblyArgs->instr = INSTR_CREATE_cmp(assemblyArgs->drcontext, opnd1, opnd2);
@@ -97,19 +90,12 @@ void check_combiner_state(assembly_args *assemblyArgs){
     opnd1 = opnd_create_instr(assemblyArgs->restore_registers);
     assemblyArgs->instr = INSTR_CREATE_jcc(assemblyArgs->drcontext, OP_je, opnd1);
     instrlist_meta_preinsert(assemblyArgs->ilist, assemblyArgs->where, assemblyArgs->instr);
-#ifdef DEBUG_INSTRUMENTATION
-    dr_insert_clean_call(drcontext, ilist, where, print_when_logging, false, 1,
-                         opnd_create_reg(reg_storing_destination));
-#endif
 }
 
 void check_remaining_space_in_hash_set(assembly_args *assemblyArgs) {
     opnd_t opnd1, opnd2;
     load_counter_in_register(assemblyArgs);
-#ifdef DEBUG_INSTRUMENTATION
-    dr_insert_clean_call(assemblyArgs->drcontext, assemblyArgs->ilist, assemblyArgs->where, print_reg_values, false, 2,
-                         opnd_create_reg(assemblyArgs->rsp), opnd_create_reg(assemblyArgs->counter_pointer_reg));
-#endif
+
 
 #ifdef DISABLE_OVERFLOW_BUFFER
     //  check if count is less that hash set size
@@ -312,11 +298,7 @@ void store_address_in_hash_set(assembly_args *assemblyArgs) {
                              opnd_create_reg(assemblyArgs->reg_storing_destination),
                              opnd_create_reg(assemblyArgs->range));
                              */
-//#ifdef PRINT_DEBUG_INFO
-#ifdef DEBUG_INSTRUMENTATION
-        dr_insert_clean_call(drcontext, ilist, where, print_when_logging, false, 1,
-                             opnd_create_reg(reg_storing_destination));
-#endif
+
 //#endif
 
     }
