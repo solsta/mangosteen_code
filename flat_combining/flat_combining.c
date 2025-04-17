@@ -205,7 +205,7 @@ void execute_using_flat_combining_no_rpc(serialized_app_command *serializedAppCo
     //int *thread_id = pthread_getspecific(per_thread_key);
     struct thread_entry *threadEntry = &taskArray[thread_index];
     bool readOnly = isReadOnlyCallBack(serializedAppCommand);
-    printf("Thread id %d is doing work\n", thread_index);
+    //printf("Thread id %d is doing work\n", thread_index);
     //printf("Thread actual id is:%d\n", threadEntry->thread_number);
     threadEntry->applicationSpecificStruct = serializedAppCommand;
 

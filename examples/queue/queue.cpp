@@ -136,7 +136,7 @@ std::atomic<int> thread_id_counter{0};
 char entry[PAYLOAD_SIZE];
 void runBenchmarkThread(void *arg){
     Queue *q = static_cast<Queue*>(arg);
-    std::this_thread::sleep_for(std::chrono::seconds(thread_id_counter.fetch_add(1)));
+    //std::this_thread::sleep_for(std::chrono::seconds(thread_id_counter.fetch_add(1)));
     
 
     char buffer[PAYLOAD_SIZE];
