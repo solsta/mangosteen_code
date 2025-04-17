@@ -123,29 +123,28 @@ void processRequest(serialized_app_command *serializedAppCommand){
     }
 }
 
+__thread serialized_app_command serializedAppCommand;
+
 void runBenchmarkThread(void *arg){
     Queue *q = static_cast<Queue*>(arg);
-    //char entry[128];
-    // = "abcdefghijklmnop";
+    char entry[128] = "abcdefghijklmnop";
     printf("About to enqueue ?\n");
-    //instrument_start();
-    //enqueue(q, entry);
-    /*
-    serialized_app_command *serializedAppCommand = (serialized_app_command*) malloc(sizeof(serialized_app_command));
-    serializedAppCommand->op_type = SM_OP_ENQUEUE;
-    serializedAppCommand->arg1 = q;
-    char entry[128];
+
+    
+    // = (serialized_app_command*) malloc(sizeof(serialized_app_command));
+    serializedAppCommand.op_type = SM_OP_ENQUEUE;
+    serializedAppCommand.arg1 = q;
     //"abcdefghijklmnop";
-    serializedAppCommand->arg2 = entry;
-    */
-    //instrument_stop();
-    //clientCmd(serializedAppCommand);
+    serializedAppCommand.arg2 = entry;
+    
+    //
+    clientCmd(&serializedAppCommand);
 
-   //serializedAppCommand->op_type = SM_OP_DEQUEUE;
+   serializedAppCommand.op_type = SM_OP_DEQUEUE;
 
-    //clientCmd(&serializedAppCommand);
-    //Node *responseNode = static_cast<Node*>(serializedAppCommand.responsePtr);
-    printf("Thread dequeued");
+    clientCmd(&serializedAppCommand);
+
+    printf("Thread dequeued\n");
 }
 
 void *initAndRunBenchMarkThread(void *arg){
