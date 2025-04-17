@@ -7,11 +7,13 @@
 #include <cstdio>  
 #include <thread>
 #include <chrono>
+#include <random>
+#include <vector>
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
 
-#define PAYLOAD_SIZE 32
+#define PAYLOAD_SIZE 128
 
 // Node structure with dynamically allocated payload
 typedef struct Node {
@@ -71,7 +73,7 @@ void enqueue(Queue* q, const char* str) {
     }
 }
 
-char response[64];
+char response[PAYLOAD_SIZE];
 
 // Dequeue and return a copy of the data
 Node* dequeue(Queue* q) {
@@ -82,7 +84,7 @@ Node* dequeue(Queue* q) {
     }
     //fprintf(stderr, "Queue is not empty\n");
     //fprintf(stderr, "Dequing: %d\n", q->front->id);
-    fprintf(stderr, "Dequing: %s\n", q->front->data);
+
     Node* responceNode = q->front;
     //strncpy(response, q->front->data, q->payload_size);
     
@@ -91,11 +93,8 @@ Node* dequeue(Queue* q) {
     if (q->front == NULL) {
         q->rear = NULL;
     }
-
-    //free(temp->data);
-    //free(temp);
-
-    return responceNode;
+    free(responceNode);
+    return NULL;
 }
 
 // Free the queue and all nodes
@@ -151,10 +150,6 @@ void runBenchmarkThread(void *arg){
         serializedAppCommand.arg2 = buffer;
         clientCmd(&serializedAppCommand);
     }
-
-
-    
-    std::this_thread::sleep_for(std::chrono::seconds(1));
    printf("Dequeue success\n");
 }
 
@@ -166,8 +161,60 @@ void *initAndRunBenchMarkThread(void *arg){
     return NULL;
 }
 
+void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
+    std::atomic<int> totalDequeued(0);
+
+    const int totalOps = numThreads * opsPerThread;
+    char *payload = static_cast<char*>(malloc(PAYLOAD_SIZE));
+
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Producer threads
+    std::vector<std::thread> workers;
+    for (int i = 0; i < numThreads; ++i) {
+
+        workers.emplace_back([=]() {
+            mangosteen_args *mangosteenArgs;
+            initialise_mangosteen(mangosteenArgs);
+
+            auto tid = std::this_thread::get_id();
+            std::hash<std::thread::id> hasher;
+            unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count() ^ hasher(tid);
+            std::mt19937 engine(seed);
+            std::uniform_int_distribution<> dist(0, 1);
+
+            char buffer[PAYLOAD_SIZE];
+            
+            serializedAppCommand.arg1 = q;
+            serializedAppCommand.arg2 = buffer;
+            
+
+            for (int j = 0; j < opsPerThread; ++j) {
+                int bit = dist(engine);
+                if(bit == 1){
+                    serializedAppCommand.op_type = SM_OP_ENQUEUE;
+                }
+                else{
+                    serializedAppCommand.op_type = SM_OP_DEQUEUE;
+                }
+                clientCmd(&serializedAppCommand);
+            }
+        });
+    }
+
+    for (auto& t : workers) t.join();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    double elapsedSec = std::chrono::duration<double>(endTime - startTime).count();
+
+    printf("Total operations: %d\n", totalOps);
+    printf("Elapsed time: %.6f seconds\n", elapsedSec);
+    printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
+}
+
 int main() {
-    int number_of_threads =2;
+    //int number_of_threads =30;
     size_t payload_size = PAYLOAD_SIZE;
     Queue* q = createQueue(payload_size);
     
@@ -181,27 +228,10 @@ int main() {
     printf("Mangosteen has initialized\n");
     printf("About to dequeue\n");
     printf("In the queue: %s", dequeue(q));
+    
+    benchmark_queue(30,100000, q);
 
-    
-    /*
-    char entry[PAYLOAD_SIZE];
-    memcpy(entry, "abcdefghijklmnop", 16);
-    printf("About to enqueue ?\n");
-    instrument_start();
-    enqueue(q,&entry[0]);
-    instrument_stop();
-*/
-    
-    pthread_t threads[number_of_threads];
-    for (int i = 0; i < number_of_threads; i++) {
-        pthread_create(&threads[i], NULL, initAndRunBenchMarkThread, q);
-    }
-    
-    for (int i = 0; i < number_of_threads; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
-    freeQueue(q);
+    //freeQueue(q);
     
     return 0;
 }
