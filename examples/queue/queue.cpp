@@ -12,17 +12,16 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-
 #define PAYLOAD_SIZE 128
 
-// Node structure with dynamically allocated payload
+thread_local serialized_app_command serializedAppCommand;
+
 typedef struct Node {
     int id;
     char data[PAYLOAD_SIZE];
     struct Node* next;
 } Node;
 
-// Queue structure that includes payload size info
 typedef struct {
     Node* front;
     Node* rear;
@@ -36,7 +35,6 @@ typedef struct QueueCommand {
     Queue *queue;
 } QueueCommand;
 
-// Create a new queue with specified payload size
 Queue* createQueue(size_t payload_size) {
     Queue* q = (Queue*)malloc(sizeof(Queue));
     if (!q) {
@@ -48,12 +46,10 @@ Queue* createQueue(size_t payload_size) {
     return q;
 }
 
-// Check if the queue is empty
 int isEmpty(Queue* q) {
     return q->front == NULL;
 }
 
-// Enqueue a new string with dynamic payload size
 void enqueue(Queue* q, const char* str) {
     Node* newNode = (Node*)malloc(sizeof(Node));
     if (!newNode) {
@@ -73,22 +69,11 @@ void enqueue(Queue* q, const char* str) {
     }
 }
 
-char response[PAYLOAD_SIZE];
-
-// Dequeue and return a copy of the data
 Node* dequeue(Queue* q) {
-    //fprintf(stderr, "Deque start\n");
     if (isEmpty(q)) {
-        //strncpy(response, "Queue is empty\n", strlen("Queue is empty\n"));
         return NULL;
     }
-    //fprintf(stderr, "Queue is not empty\n");
-    //fprintf(stderr, "Dequing: %d\n", q->front->id);
-
     Node* responceNode = q->front;
-    //strncpy(response, q->front->data, q->payload_size);
-    
-
     q->front = q->front->next;
     if (q->front == NULL) {
         q->rear = NULL;
@@ -97,12 +82,10 @@ Node* dequeue(Queue* q) {
     return NULL;
 }
 
-// Free the queue and all nodes
 void freeQueue(Queue* q) {
     Node* current = q->front;
     while (current != NULL) {
         Node* next = current->next;
-        free(current->data);
         free(current);
         current = next;
     }
@@ -114,7 +97,6 @@ bool isReadOnly(serialized_app_command *serializedAppCommand){
 }
 
 void processRequest(serialized_app_command *serializedAppCommand){
-
     Queue *q = static_cast<Queue*>(serializedAppCommand->arg1);
 
     if(serializedAppCommand->op_type == SM_OP_ENQUEUE){
@@ -128,49 +110,10 @@ void processRequest(serialized_app_command *serializedAppCommand){
     }
 }
 
-thread_local serialized_app_command serializedAppCommand;
-
-std::atomic<int> thread_id_counter{0};
-
-char entry[PAYLOAD_SIZE];
-void runBenchmarkThread(void *arg){
-    Queue *q = static_cast<Queue*>(arg);
-    //std::this_thread::sleep_for(std::chrono::seconds(thread_id_counter.fetch_add(1)));
-    
-
-    char buffer[PAYLOAD_SIZE];
-
-    for(int i=0; i < 9; i++){
-        int my_id = thread_id_counter.fetch_add(1);
-        std::snprintf(buffer, sizeof(buffer), "msg from %d", my_id);
-        //printf("Thread id %d\n", my_id);
-        
-        serializedAppCommand.op_type = SM_OP_ENQUEUE;
-        serializedAppCommand.arg1 = q;
-        serializedAppCommand.arg2 = buffer;
-        clientCmd(&serializedAppCommand);
-    }
-   printf("Dequeue success\n");
-}
-
-void *initAndRunBenchMarkThread(void *arg){
-    mangosteen_args *mangosteenArgs;
-    initialise_mangosteen(mangosteenArgs);
-    //printf("thread initialized\n");
-    runBenchmarkThread(arg);
-    return NULL;
-}
-
 void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
-    std::atomic<int> totalDequeued(0);
-
     const int totalOps = numThreads * opsPerThread;
-    char *payload = static_cast<char*>(malloc(PAYLOAD_SIZE));
-
-
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    // Producer threads
     std::vector<std::thread> workers;
     for (int i = 0; i < numThreads; ++i) {
 
@@ -214,7 +157,6 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
 }
 
 int main() {
-    //int number_of_threads =30;
     size_t payload_size = PAYLOAD_SIZE;
     Queue* q = createQueue(payload_size);
     
@@ -226,12 +168,7 @@ int main() {
 
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
-    printf("About to dequeue\n");
-    printf("In the queue: %s", dequeue(q));
     
     benchmark_queue(30,500000, q);
-
-    //freeQueue(q);
-    
     return 0;
 }
