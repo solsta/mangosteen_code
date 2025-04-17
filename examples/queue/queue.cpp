@@ -3,11 +3,15 @@
 #include <jemalloc/jemalloc.h>
 #include <stdio.h>
 #include <string.h>
+#include <atomic>
+#include <cstdio>  
+#include <thread>
+#include <chrono>
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
 
-#define PAYLOAD_SIZE 256
+#define PAYLOAD_SIZE 32
 
 // Node structure with dynamically allocated payload
 typedef struct Node {
@@ -55,7 +59,7 @@ void enqueue(Queue* q, const char* str) {
         exit(EXIT_FAILURE);
     }
     newNode->id = 1;
-    memcpy(newNode->data, str, q->payload_size - 1);
+    memcpy(newNode->data, (void*)str, q->payload_size - 1);
     newNode->data[q->payload_size - 1] = '\0';
     newNode->next = NULL;
 
@@ -126,32 +130,31 @@ void processRequest(serialized_app_command *serializedAppCommand){
 }
 
 __thread serialized_app_command serializedAppCommand;
+
+std::atomic<int> thread_id_counter{0};
+
 char entry[PAYLOAD_SIZE];
 void runBenchmarkThread(void *arg){
     Queue *q = static_cast<Queue*>(arg);
-    
-/*
-    printf("About to enqueue ?\n");
-    instrument_start();
-    enqueue(q,&entry[0]);
-    instrument_stop();
-*/
-   
-    // = (serialized_app_command*) malloc(sizeof(serialized_app_command));
-    serializedAppCommand.op_type = SM_OP_ENQUEUE;
-    serializedAppCommand.arg1 = q;
-    //"abcdefghijklmnop";
-    serializedAppCommand.arg2 = entry;
-    
-    //
-    clientCmd(&serializedAppCommand);
-
-   serializedAppCommand.op_type = SM_OP_DEQUEUE;
-
-    clientCmd(&serializedAppCommand);
-
+    std::this_thread::sleep_for(std::chrono::seconds(thread_id_counter.fetch_add(1)));
     
 
+    char buffer[PAYLOAD_SIZE];
+
+    for(int i=0; i < 9; i++){
+        int my_id = thread_id_counter.fetch_add(1);
+        std::snprintf(buffer, sizeof(buffer), "msg from %d", my_id);
+        //printf("Thread id %d\n", my_id);
+        
+        serializedAppCommand.op_type = SM_OP_ENQUEUE;
+        serializedAppCommand.arg1 = q;
+        serializedAppCommand.arg2 = buffer;
+        clientCmd(&serializedAppCommand);
+    }
+
+
+    
+    std::this_thread::sleep_for(std::chrono::seconds(1));
    printf("Dequeue success\n");
 }
 
@@ -164,7 +167,7 @@ void *initAndRunBenchMarkThread(void *arg){
 }
 
 int main() {
-    int number_of_threads =4;
+    int number_of_threads =2;
     size_t payload_size = PAYLOAD_SIZE;
     Queue* q = createQueue(payload_size);
     
@@ -179,7 +182,7 @@ int main() {
     printf("About to dequeue\n");
     printf("In the queue: %s", dequeue(q));
 
-    memcpy(entry, "abcdefghijklmnop", 16);
+    
     /*
     char entry[PAYLOAD_SIZE];
     memcpy(entry, "abcdefghijklmnop", 16);

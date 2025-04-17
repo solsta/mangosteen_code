@@ -107,7 +107,7 @@ void exec_rw_flat_combining(struct thread_entry *threadEntry, struct profiling_d
 
 
                 //_mm_sfence();
-
+                instrument_start();
                 while (true) {
                     for (int i = 0; i < NUMBER_OF_THREADS; i++) {
                         if (taskArray[i].ready == READY_TO_EXECUTE) {
@@ -133,7 +133,7 @@ void exec_rw_flat_combining(struct thread_entry *threadEntry, struct profiling_d
 #ifdef DEBUG_FLAT_COMBINING
                 printf("Starting instrumentation\n");
 #endif
-                instrument_start();
+                
 #ifdef SPLIT_ALLOCATOR
                 enableCombinerCallBack();
 #endif
@@ -205,8 +205,8 @@ void execute_using_flat_combining_no_rpc(serialized_app_command *serializedAppCo
     //int *thread_id = pthread_getspecific(per_thread_key);
     struct thread_entry *threadEntry = &taskArray[thread_index];
     bool readOnly = isReadOnlyCallBack(serializedAppCommand);
-    printf("Thread id is:%d\n", thread_index);
-    printf("Thread actual id is:%d\n", threadEntry->thread_number);
+    printf("Thread id %d is doing work\n", thread_index);
+    //printf("Thread actual id is:%d\n", threadEntry->thread_number);
     threadEntry->applicationSpecificStruct = serializedAppCommand;
 
     if(!readOnly) {
@@ -217,11 +217,13 @@ void execute_using_flat_combining_no_rpc(serialized_app_command *serializedAppCo
         }
 */
         exec_rw_flat_combining(threadEntry, NULL);
+        reset_hash_set();
 /*
         if (condition) {
-            reset_hash_set();
+            
         }
         */
+
     }
     else {
         exec_ro(threadEntry);
@@ -229,7 +231,7 @@ void execute_using_flat_combining_no_rpc(serialized_app_command *serializedAppCo
 }
 
 void clientCmd(serialized_app_command *serializedAppCommand){
-	printf("In flat combining\n");
+	//printf("In flat combining\n");
     execute_using_flat_combining_no_rpc(serializedAppCommand);
 }
 
