@@ -41,7 +41,7 @@ static volatile bool recoveryIsComplete = false;
 //#define MANGOSTEEN_DEBUG 0
 
 struct thread_entry *taskArray;
-extern int thread_index;
+extern __thread int thread_index;
 //
 void configure_cpu_set(struct thread_entry *threadEntry);
 void *StartServerThread(void *context);

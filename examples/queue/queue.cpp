@@ -129,7 +129,7 @@ void processRequest(serialized_app_command *serializedAppCommand){
     }
 }
 
-__thread serialized_app_command serializedAppCommand;
+thread_local serialized_app_command serializedAppCommand;
 
 std::atomic<int> thread_id_counter{0};
 
