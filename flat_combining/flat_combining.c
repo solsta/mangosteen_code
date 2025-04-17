@@ -95,8 +95,8 @@ void exec_rw_flat_combining(struct thread_entry *threadEntry, struct profiling_d
             threadEntry->ready = NONE;
             break;
         }
-        if (lockIsFree()) {
-            if (lockWriter()) {
+        if (__builtin_expect(lockIsFree(), 1)) {
+            if (__builtin_expect(lockWriter(), 1)) {
                 int number_of_comamnds = 0;
                 int ready_commands_indexes[NUMBER_OF_THREADS];
 

@@ -229,7 +229,7 @@ int main() {
     printf("About to dequeue\n");
     printf("In the queue: %s", dequeue(q));
     
-    benchmark_queue(30,100000, q);
+    benchmark_queue(30,500000, q);
 
     //freeQueue(q);
     
