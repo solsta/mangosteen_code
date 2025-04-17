@@ -123,37 +123,37 @@ void processRequest(serialized_app_command *serializedAppCommand){
     }
 }
 
-void *runBenchmarkThread(void *arg){
+void runBenchmarkThread(void *arg){
     Queue *q = static_cast<Queue*>(arg);
-    char *entry = "abcdefghijklmnop";
-    instrument_start();
-    enqueue(q, entry);
+    //char entry[128];
+    // = "abcdefghijklmnop";
+    printf("About to enqueue ?\n");
+    //instrument_start();
+    //enqueue(q, entry);
     /*
     serialized_app_command *serializedAppCommand = (serialized_app_command*) malloc(sizeof(serialized_app_command));
     serializedAppCommand->op_type = SM_OP_ENQUEUE;
     serializedAppCommand->arg1 = q;
-    char *entry = "abcdefghijklmnop";
+    char entry[128];
+    //"abcdefghijklmnop";
     serializedAppCommand->arg2 = entry;
     */
-    instrument_stop();
+    //instrument_stop();
     //clientCmd(serializedAppCommand);
 
    //serializedAppCommand->op_type = SM_OP_DEQUEUE;
 
     //clientCmd(&serializedAppCommand);
     //Node *responseNode = static_cast<Node*>(serializedAppCommand.responsePtr);
-   // printf("Thread dequeued: %s\n",responseNode->data);
-
-    return NULL;
+    printf("Thread dequeued");
 }
 
 void *initAndRunBenchMarkThread(void *arg){
-    mangosteen_args mangosteenArgs;
-    mangosteenArgs.isReadOnly = &isReadOnly;
-    mangosteenArgs.processRequest = &processRequest;
-    mangosteenArgs.mode = SINGLE_THREAD;
-    initialise_mangosteen(&mangosteenArgs);
+    mangosteen_args *mangosteenArgs;
+    initialise_mangosteen(mangosteenArgs);
+    printf("thread initialized\n");
     runBenchmarkThread(arg);
+    return NULL;
 }
 
 int main() {

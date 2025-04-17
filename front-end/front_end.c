@@ -25,20 +25,20 @@ void mangosteen_initialize_thread(){
     pthread_mutex_lock(&mutex);
     int tid = gettid();
     printf("Thread id: %d\n", tid);
-    int thread_index;
-    thread_index = global_thread_count;
+    int *thread_index = malloc(sizeof(int));
+    *thread_index = global_thread_count;
     pthread_setspecific(per_thread_key, thread_index);
     //int *thread_index = pthread_getspecific(per_thread_key);
-    taskArray[thread_index].ready = NONE;
-    taskArray[thread_index].connection_slot = CONNECTION_AVAILABLE;
-    taskArray[thread_index].thread_number = thread_index;
+    taskArray[*thread_index].ready = NONE;
+    taskArray[*thread_index].connection_slot = CONNECTION_AVAILABLE;
+    taskArray[*thread_index].thread_number = thread_index;
     // TODO add transient allocator handle
     //taskArray[*thread_index].handle = transient_allocator_handle;
-    explicit_bzero(&taskArray[thread_index].command_request, 2048);
+    explicit_bzero(&taskArray[*thread_index].command_request, 2048);
 
     global_thread_count++;
 
-    configure_cpu_set(&taskArray[thread_index]);
+    configure_cpu_set(&taskArray[*thread_index]);
     pthread_mutex_unlock(&mutex);
 }
 
