@@ -7,10 +7,12 @@
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
 
+#define PAYLOAD_SIZE 256
+
 // Node structure with dynamically allocated payload
 typedef struct Node {
     int id;
-    char data[64];
+    char data[PAYLOAD_SIZE];
     struct Node* next;
 } Node;
 
@@ -124,13 +126,17 @@ void processRequest(serialized_app_command *serializedAppCommand){
 }
 
 __thread serialized_app_command serializedAppCommand;
-
+char entry[PAYLOAD_SIZE];
 void runBenchmarkThread(void *arg){
     Queue *q = static_cast<Queue*>(arg);
-    char entry[128] = "abcdefghijklmnop";
-    printf("About to enqueue ?\n");
-
     
+/*
+    printf("About to enqueue ?\n");
+    instrument_start();
+    enqueue(q,&entry[0]);
+    instrument_stop();
+*/
+   
     // = (serialized_app_command*) malloc(sizeof(serialized_app_command));
     serializedAppCommand.op_type = SM_OP_ENQUEUE;
     serializedAppCommand.arg1 = q;
@@ -144,22 +150,24 @@ void runBenchmarkThread(void *arg){
 
     clientCmd(&serializedAppCommand);
 
-    printf("Thread dequeued\n");
+    
+
+   printf("Dequeue success\n");
 }
 
 void *initAndRunBenchMarkThread(void *arg){
     mangosteen_args *mangosteenArgs;
     initialise_mangosteen(mangosteenArgs);
-    printf("thread initialized\n");
+    //printf("thread initialized\n");
     runBenchmarkThread(arg);
     return NULL;
 }
 
 int main() {
-    int number_of_threads =1;
-    size_t payload_size = 64;
+    int number_of_threads =4;
+    size_t payload_size = PAYLOAD_SIZE;
     Queue* q = createQueue(payload_size);
-
+    
     //Mangosteen initialization
     mangosteen_args mangosteenArgs;
     mangosteenArgs.isReadOnly = &isReadOnly;
@@ -170,6 +178,16 @@ int main() {
     printf("Mangosteen has initialized\n");
     printf("About to dequeue\n");
     printf("In the queue: %s", dequeue(q));
+
+    memcpy(entry, "abcdefghijklmnop", 16);
+    /*
+    char entry[PAYLOAD_SIZE];
+    memcpy(entry, "abcdefghijklmnop", 16);
+    printf("About to enqueue ?\n");
+    instrument_start();
+    enqueue(q,&entry[0]);
+    instrument_stop();
+*/
     
     pthread_t threads[number_of_threads];
     for (int i = 0; i < number_of_threads; i++) {
@@ -181,5 +199,6 @@ int main() {
     }
 
     freeQueue(q);
+    
     return 0;
 }

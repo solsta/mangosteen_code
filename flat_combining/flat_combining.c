@@ -202,10 +202,10 @@ void mangosteen_execute_transactionally(){
 }
 
 void execute_using_flat_combining_no_rpc(serialized_app_command *serializedAppCommand){
-    int *thread_id = pthread_getspecific(per_thread_key);
-    struct thread_entry *threadEntry = &taskArray[*thread_id];
+    //int *thread_id = pthread_getspecific(per_thread_key);
+    struct thread_entry *threadEntry = &taskArray[thread_index];
     bool readOnly = isReadOnlyCallBack(serializedAppCommand);
-    printf("Thread id is:%d\n", *thread_id);
+    printf("Thread id is:%d\n", thread_index);
     printf("Thread actual id is:%d\n", threadEntry->thread_number);
     threadEntry->applicationSpecificStruct = serializedAppCommand;
 
