@@ -28,7 +28,6 @@ typedef struct Node {
 typedef struct {
     Node* front;
     Node* rear;
-    size_t payload_size;
 } Queue;
 
 typedef struct QueueCommand {
@@ -40,34 +39,36 @@ typedef struct QueueCommand {
 
 Queue* createQueue(size_t payload_size) {
     Queue* q = (Queue*)malloc(sizeof(Queue));
-    q->front = q->rear = NULL;
-    q->payload_size = payload_size;
+    Node *node = (Node*)malloc(sizeof(Node));
+    node->next = NULL;
+    q->front = q->rear = node;
     return q;
 }
 
 void enqueue(Queue* q, const char* str) {
     Node* newNode = (Node*)malloc(sizeof(Node));
-    memcpy(newNode->data, (void*)str, q->payload_size - 1);
-    newNode->data[q->payload_size - 1] = '\0';
+    memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
+    newNode->data[PAYLOAD_SIZE - 1] = '\0';
     newNode->next = NULL;
 
-    std::lock_guard<std::mutex> lock(tailMutex);
+    tailMutex.lock();
     q->rear->next = newNode;
     q->rear = newNode;
-    std::lock_guard<std::mutex> unlock(tailMutex);
+    tailMutex.unlock();
 }
 
 Node* dequeue(Queue* q) {
-    std::lock_guard<std::mutex> lock(headMutex);
-    Node* node = q->front;
-    Node *new_head = node->next;
 
-    if (new_head == NULL) {
-        std::lock_guard<std::mutex> unlock(headMutex);
-        return NULL;
-    }
-    q->front = new_head;
-    std::lock_guard<std::mutex> unlock(headMutex);
+    headMutex.lock();
+        Node* node = q->front;
+        Node *new_head = node->next;
+
+        if (new_head == NULL) {
+            headMutex.unlock();
+            return NULL;
+        }
+        q->front = new_head;
+    headMutex.unlock();
     free(node);
     return NULL;
 }
