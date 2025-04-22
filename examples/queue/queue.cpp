@@ -7,12 +7,12 @@
 #include <cstdio>  
 #include <thread>
 #include <chrono>
-#include <random>
+#include "/home/se00598/home/se00598/vanila_flit/flit/common/rand_r_32.h"
 #include <vector>
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 128
+#define PAYLOAD_SIZE 64
 
 thread_local serialized_app_command serializedAppCommand;
 
@@ -52,11 +52,7 @@ int isEmpty(Queue* q) {
 
 void enqueue(Queue* q, const char* str) {
     Node* newNode = (Node*)malloc(sizeof(Node));
-    if (!newNode) {
-        fprintf(stderr, "Failed to allocate memory for node\n");
-        exit(EXIT_FAILURE);
-    }
-    newNode->id = 1;
+    //newNode->id = 1;
     memcpy(newNode->data, (void*)str, q->payload_size - 1);
     newNode->data[q->payload_size - 1] = '\0';
     newNode->next = NULL;
@@ -96,6 +92,8 @@ bool isReadOnly(serialized_app_command *serializedAppCommand){
     return false;
 }
 
+
+
 void processRequest(serialized_app_command *serializedAppCommand){
     Queue *q = static_cast<Queue*>(serializedAppCommand->arg1);
 
@@ -115,17 +113,13 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
     auto startTime = std::chrono::high_resolution_clock::now();
 
     std::vector<std::thread> workers;
-    for (int i = 0; i < numThreads; ++i) {
+    for (int i = 0; i < numThreads; i++) {
 
         workers.emplace_back([=]() {
             mangosteen_args *mangosteenArgs;
             initialise_mangosteen(mangosteenArgs);
 
-            auto tid = std::this_thread::get_id();
-            std::hash<std::thread::id> hasher;
-            unsigned seed = std::chrono::steady_clock::now().time_since_epoch().count() ^ hasher(tid);
-            std::mt19937 engine(seed);
-            std::uniform_int_distribution<> dist(0, 1);
+            my_rand::init(i);
 
             char buffer[PAYLOAD_SIZE];
             
@@ -134,8 +128,8 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
             
 
             for (int j = 0; j < opsPerThread; ++j) {
-                int bit = dist(engine);
-                if(bit == 1){
+                int add_or_remove = my_rand::get_rand()%2;
+                if(add_or_remove == 1){
                     serializedAppCommand.op_type = SM_OP_ENQUEUE;
                 }
                 else{
@@ -179,6 +173,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
     
-    benchmark_queue(numberOfThreads,500000, q);
+    benchmark_queue(numberOfThreads,3000000, q);
     return 0;
 }
