@@ -156,9 +156,19 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
     printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <number>\n", argv[0]);
+        return 1;
+    }
+
+    int numberOfThreads = atoi(argv[1]);
     size_t payload_size = PAYLOAD_SIZE;
     Queue* q = createQueue(payload_size);
+    char buf[PAYLOAD_SIZE];
+    for(int i=0; i < 128; i++){
+        enqueue(q,buf);
+    }
     
     //Mangosteen initialization
     mangosteen_args mangosteenArgs;
@@ -169,6 +179,6 @@ int main() {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
     
-    benchmark_queue(30,500000, q);
+    benchmark_queue(numberOfThreads,500000, q);
     return 0;
 }
