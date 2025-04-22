@@ -112,8 +112,9 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
 
         workers.emplace_back([=]() {
             mangosteen_args *mangosteenArgs;
+#ifdef RUN_WITH_MANGOSTEEN
             initialise_mangosteen(mangosteenArgs);
-
+#endif
             my_rand::init(i);
 
             char buffer[PAYLOAD_SIZE];
@@ -125,12 +126,22 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
             for (int j = 0; j < opsPerThread; ++j) {
                 int add_or_remove = my_rand::get_rand()%2;
                 if(add_or_remove == 1){
+#ifdef RUN_WITH_MANGOSTEEN
                     serializedAppCommand.op_type = SM_OP_ENQUEUE;
+#else
+                    enqueue(q, buffer);
+#endif
                 }
                 else{
+#ifdef RUN_WITH_MANGOSTEEN
                     serializedAppCommand.op_type = SM_OP_DEQUEUE;
+#else
+                    dequeue(q);
+#endif
                 }
+#ifdef RUN_WITH_MANGOSTEEN
                 clientCmd(&serializedAppCommand);
+#endif
             }
         });
     }
@@ -164,10 +175,10 @@ int main(int argc, char *argv[]) {
     mangosteenArgs.isReadOnly = &isReadOnly;
     mangosteenArgs.processRequest = &processRequest;
     mangosteenArgs.mode = MULTI_THREAD;
-
+#ifdef RUN_WITH_MANGOSTEEN
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
-    
+#endif
     benchmark_queue(numberOfThreads,3000000, q);
     return 0;
 }
