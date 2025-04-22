@@ -14,6 +14,7 @@
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
 #define PAYLOAD_SIZE 128
+#define RUN_WITH_MANGOSTEEN
 
 std::mutex headMutex;
 std::mutex tailMutex;
@@ -50,25 +51,33 @@ void enqueue(Queue* q, const char* str) {
     memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
     newNode->data[PAYLOAD_SIZE - 1] = '\0';
     newNode->next = NULL;
-
+ #ifndef RUN_WITH_MANGOSTEEN
     tailMutex.lock();
+#endif
     q->rear->next = newNode;
     q->rear = newNode;
+#ifndef RUN_WITH_MANGOSTEEN
     tailMutex.unlock();
+#endif
 }
 
 Node* dequeue(Queue* q) {
-
+#ifndef RUN_WITH_MANGOSTEEN
     headMutex.lock();
+#endif
         Node* node = q->front;
         Node *new_head = node->next;
 
         if (new_head == NULL) {
+#ifndef RUN_WITH_MANGOSTEEN
             headMutex.unlock();
+#endif
             return NULL;
         }
         q->front = new_head;
+#ifndef RUN_WITH_MANGOSTEEN
     headMutex.unlock();
+#endif
     free(node);
     return NULL;
 }
