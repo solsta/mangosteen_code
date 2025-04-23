@@ -3,16 +3,17 @@
 #include <jemalloc/jemalloc.h>
 #include <stdio.h>
 #include <string.h>
-#include <atomic>
-#include <cstdio>  
+#include <atomic>  
 #include <thread>
 #include <chrono>
 #include "/home/se00598/home/se00598/vanila_flit/flit/common/rand_r_32.h"
 #include <vector>
+#include <cstdlib>
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
 #define PAYLOAD_SIZE 64
+#define ALIGNMENT 128
 
 thread_local serialized_app_command serializedAppCommand;
 
@@ -36,6 +37,7 @@ typedef struct QueueCommand {
 } QueueCommand;
 
 Queue* createQueue(size_t payload_size) {
+    //Queue* q = (Queue*)aligned_alloc(ALIGNMENT, sizeof(Queue));
     Queue* q = (Queue*)malloc(sizeof(Queue));
     if (!q) {
         fprintf(stderr, "Failed to allocate memory for queue\n");
@@ -51,6 +53,7 @@ int isEmpty(Queue* q) {
 }
 
 void enqueue(Queue* q, const char* str) {
+   //Node* newNode = (Node*)aligned_alloc(ALIGNMENT,sizeof(Node));
     Node* newNode = (Node*)malloc(sizeof(Node));
     //newNode->id = 1;
     memcpy(newNode->data, (void*)str, q->payload_size - 1);
@@ -173,6 +176,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
     
-    benchmark_queue(numberOfThreads,3000000, q);
+    benchmark_queue(numberOfThreads,1000000, q);
     return 0;
 }

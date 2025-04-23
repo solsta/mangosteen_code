@@ -13,7 +13,7 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 128
+#define PAYLOAD_SIZE 16
 #define RUN_WITH_MANGOSTEEN
 
 std::mutex headMutex;
@@ -22,6 +22,7 @@ std::mutex tailMutex;
 thread_local serialized_app_command serializedAppCommand;
 
 typedef struct Node {
+    int id;
     char data[PAYLOAD_SIZE];
     struct Node* next;
 } Node;
@@ -48,7 +49,9 @@ Queue* createQueue(size_t payload_size) {
 
 void enqueue(Queue* q, const char* str) {
     Node* newNode = (Node*)malloc(sizeof(Node));
+    newNode->id = 1;
     memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
+    //instrumented_memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
     newNode->data[PAYLOAD_SIZE - 1] = '\0';
     newNode->next = NULL;
  #ifndef RUN_WITH_MANGOSTEEN
@@ -188,6 +191,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
 #endif
-    benchmark_queue(numberOfThreads,3000000, q);
+    benchmark_queue(numberOfThreads,100000, q);
     return 0;
 }

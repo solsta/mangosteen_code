@@ -16,7 +16,7 @@
 #include "../mangosteen_instrumentation.h"
 pthread_mutex_t mutex;
 #define SUCCESS 0
-#define NUMBER_OF_THREADS 4
+#define NUMBER_OF_THREADS 30
 #define THREADS_PER_SINGLE_WM 30
 #define WM_ARRAY_SIZE (NUMBER_OF_THREADS/THREADS_PER_SINGLE_WM)
 #define PORT_NUMBER 6379
