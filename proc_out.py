@@ -5,21 +5,8 @@ import argparse
 import statistics
 
 def get_files_for_thread(thread_number):
-
-    # Directory to scan
-
-    directory = "test_out"
-
-    
-
-    # Regex pattern to match filenames like out_<thread>_run<run>.out
-
+    directory = "ms_lock_based_volatile"
     pattern = re.compile(rf"out_{thread_number}_run\d+\.out")
-
-
-
-    # Filter files in 'test_out' that match the specified thread number
-
     matching_files = [
 
         filename for filename in os.listdir(directory)
@@ -27,10 +14,6 @@ def get_files_for_thread(thread_number):
         if pattern.match(filename)
 
     ]
-
-
-
-    # Return full paths (optional) or just filenames
 
     return [os.path.join(directory, filename) for filename in matching_files]
 

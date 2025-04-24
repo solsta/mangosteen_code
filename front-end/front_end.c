@@ -42,14 +42,14 @@ void mangosteen_initialize_thread(){
 
     configure_cpu_set(&taskArray[thread_index]);
     pthread_mutex_unlock(&mutex);
-    
+   /* 
     while (global_thread_count < NUMBER_OF_THREADS-1)
 
     {
         printf("waiting for others\n");
         
     }
-    
+    */
     
 }
 

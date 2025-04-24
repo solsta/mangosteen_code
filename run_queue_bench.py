@@ -1,7 +1,7 @@
 import subprocess
 
 # List of thread counts
-thread_counts = [16, 24, 30]
+thread_counts = [4, 8, 16, 24, 30]
 
 # Number of runs per thread count
 num_runs = 5

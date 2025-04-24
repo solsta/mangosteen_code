@@ -13,16 +13,16 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 256
+#define PAYLOAD_SIZE 120
 #define RUN_WITH_MANGOSTEEN
 
 std::mutex headMutex;
 std::mutex tailMutex;
 
 thread_local serialized_app_command serializedAppCommand;
+volatile thread_local char *responseBuffer[PAYLOAD_SIZE];
 
 typedef struct Node {
-    int id;
     char data[PAYLOAD_SIZE];
     struct Node* next;
 } Node;
@@ -49,9 +49,7 @@ Queue* createQueue(size_t payload_size) {
 
 void enqueue(Queue* q, const char* str) {
     Node* newNode = (Node*)malloc(sizeof(Node));
-    newNode->id = 1;
     memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
-    //instrumented_memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
     newNode->data[PAYLOAD_SIZE - 1] = '\0';
     newNode->next = NULL;
  #ifndef RUN_WITH_MANGOSTEEN
