@@ -13,7 +13,7 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 16
+#define PAYLOAD_SIZE 128
 #define RUN_WITH_MANGOSTEEN
 
 std::mutex headMutex;
