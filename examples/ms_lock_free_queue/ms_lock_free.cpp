@@ -13,7 +13,7 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 128
+#define PAYLOAD_SIZE 120
 #define RUN_WITH_MANGOSTEEN
 
 thread_local serialized_app_command serializedAppCommand;
@@ -110,20 +110,35 @@ void enqueue(Queue *q, char *payload, int payloadSize){
 
         if(cachedTail == q->tail){
             if(nextNode == NULL){ //Was tail pointing to the last node?
+
+#ifdef RUN_WITH_MANGOSTEEN
+                cachedTailPtr->next = pack(node, cachedTailCounter+1);
+                break;
+#else
+
                 bool res = cachedTailPtr->next.compare_exchange_strong(packedNext, pack(node, cachedTailCounter+1));
                 if(res){
                     break;
                 }
+#endif
             } else{
+#ifdef RUN_WITH_MANGOSTEEN
+                q->tail = pack(nextNode, cachedTailCounter+1);
+#else
                 q->tail.compare_exchange_strong(cachedTail, pack(nextNode, cachedTailCounter+1));
+#endif
             }
         }
     }
+#ifdef RUN_WITH_MANGOSTEEN
+    q->tail = pack(node, cachedTailCounter+1);
+#else
     q->tail.compare_exchange_strong(cachedTail, pack(node, cachedTailCounter+1));
+#endif
 
 }
 
-char res[128];
+char res[PAYLOAD_SIZE];
 bool dequeue(Queue *q, char *response){
     Node *cachedHeadPointer;
     while (true)
@@ -145,16 +160,26 @@ bool dequeue(Queue *q, char *response){
                 if(nextNode == NULL){
                     return false;
                 }
-                q->tail.compare_exchange_strong(cachedTail,pack(nextNode,cachedTailCounter+1)); 
+#ifdef RUN_WITH_MANGOSTEEN
+              q->tail = pack(nextNode,cachedTailCounter+1);
+#else
+              q->tail.compare_exchange_strong(cachedTail,pack(nextNode,cachedTailCounter+1));
+#endif
             } else{
 #ifdef RETRUN_RESULT_FOR_DEQUEUE
                 memcpy(&res, nextNode->nodePayload, PAYLOAD_SIZE); // This corresponds to line D12
 #endif
-               
+
+
+#ifdef RUN_WITH_MANGOSTEEN
+                q->head = pack(nextNode,cachedHeadCounter+1);
+                break;
+#else
                 nextNode->nodePayload;
                 if(q->head.compare_exchange_strong(cachedHead,pack(nextNode,cachedHeadCounter+1))){
                     break;
                 }
+#endif
             }
         }
     }
@@ -261,6 +286,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
 #endif
-    benchmark_queue(numberOfThreads,100000, q);
+    benchmark_queue(numberOfThreads,500000, q);
     return 0;
 }
