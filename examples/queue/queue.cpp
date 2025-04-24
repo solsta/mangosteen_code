@@ -176,6 +176,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
     
-    benchmark_queue(numberOfThreads,1000000, q);
+    benchmark_queue(numberOfThreads,2000000, q);
     return 0;
 }

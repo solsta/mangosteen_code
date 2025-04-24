@@ -13,7 +13,7 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 128
+#define PAYLOAD_SIZE 256
 #define RUN_WITH_MANGOSTEEN
 
 std::mutex headMutex;
@@ -191,6 +191,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
 #endif
-    benchmark_queue(numberOfThreads,100000, q);
+    benchmark_queue(numberOfThreads,500000, q);
     return 0;
 }

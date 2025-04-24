@@ -216,8 +216,8 @@ static void collect_payload_and_store_to_pmem(per_thread_t *data, bool commit)
 #endif
 
 #ifdef TEST_WITHOUT_BACKEND
-    set_global_head_value(0);
-    set_global_tail_value(0);
+    set_global_head_value(0,data->pmem_buffer);
+    set_global_tail_value(0, data->pmem_buffer);
 #endif
 
 }

@@ -15,6 +15,9 @@
 
 #define ATOMIC_PMEM_SIZE 8
 
+//#define CONSUMER_SKIP_REDO
+//#define CONSUMER_SKIP_MMAP
+
 void commit_batch(ring_buffer *ringBuffer) {
     _mm_sfence();
     ring_buffer_commit_dequeued_entries(ringBuffer);
@@ -105,12 +108,22 @@ void process_entry(ring_buffer *ringBuffer, region_table *regionTable) {
          }
 #endif
 #ifndef CONSUMER_SKIP_REDO
-            memcpy(entry->addr, entry->payload, PAYLOAD_SIZE);
+            //printf("Consumer redo entry addr %p\n", entry->addr);
+            if(__builtin_expect(((uintptr_t)entry->addr < 0x700000000000), false)){ // Some values from low memory range.
+                printf("Consumer skipping system redo entry addr %p\n", entry->addr);
+            } else {
+                memcpy(entry->addr, entry->payload, PAYLOAD_SIZE);
+                pmem_flush(entry->addr, PAYLOAD_SIZE);
+            }
+                //
+                //
+            
+            
             //pmem_persist(entry->addr, PAYLOAD_SIZE);
-            pmem_flush(entry->addr, PAYLOAD_SIZE);
+            
 #endif
         //}
-        //printf("Consumer redo entry addr %p\n", entry->addr);
+        //
 
 
     } else if (entry->entry_type == COMMIT_ENTRY) {
@@ -138,7 +151,9 @@ _Noreturn void run_consumer(ring_buffer *ringBuffer, region_table *regionTable) 
         while (ringBuffer->last_persisted_tail == tmp) {
             Pause();
             tmp = ringBuffer->last_persisted_head;
+            //printf("tmp: %d\n", tmp);
         }
+        //printf("Backend is processing index: %d\n", tmp);
         process_entry(ringBuffer, regionTable);
     }
 }

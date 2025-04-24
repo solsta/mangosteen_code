@@ -42,6 +42,15 @@ void mangosteen_initialize_thread(){
 
     configure_cpu_set(&taskArray[thread_index]);
     pthread_mutex_unlock(&mutex);
+    
+    while (global_thread_count < NUMBER_OF_THREADS-1)
+
+    {
+        printf("waiting for others\n");
+        
+    }
+    
+    
 }
 
 void start_worker_threads(pthread_t *threadArray,  struct thread_args *threadArgs, void *transient_allocator_handle) {
@@ -158,8 +167,8 @@ void start_front_end(bool rpc_mode, bool newProcess) {
         if(rpc_mode){
             start_worker_threads(threadArray, &targs, transient_allocator_handle);
         }
-
         sem_post(sem);
+        //sem_wait(sem);
         sem_close(sem);
         if(rpc_mode) {
             for (int i = 0; i < NUMBER_OF_THREADS; i++) {
