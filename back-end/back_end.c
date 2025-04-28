@@ -110,7 +110,7 @@ void process_entry(ring_buffer *ringBuffer, region_table *regionTable) {
 #ifndef CONSUMER_SKIP_REDO
             //printf("Consumer redo entry addr %p\n", entry->addr);
             if(__builtin_expect(((uintptr_t)entry->addr < 0x700000000000), false)){ // Some values from low memory range.
-                printf("Consumer skipping system redo entry addr %p\n", entry->addr);
+                //printf("Consumer skipping system redo entry addr %p\n", entry->addr);
             } else {
                 memcpy(entry->addr, entry->payload, PAYLOAD_SIZE);
                 pmem_flush(entry->addr, PAYLOAD_SIZE);

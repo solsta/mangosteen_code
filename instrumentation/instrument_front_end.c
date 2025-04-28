@@ -272,11 +272,11 @@ static void processOverflowBuffer(){
 
 DR_EXPORT static void
 instrumented_memcpy(void *dest, void *src, size_t size){
-#ifdef DEBUG_INSTRUMENTATION
+//#ifdef DEBUG_INSTRUMENTATION
     dr_fprintf(STDERR,"memcpy arg 0: %p\n", dest);
     dr_fprintf(STDERR,"memcpy arg 1: %p\n", src);
     dr_fprintf(STDERR,"memcpy arg 0: %d\n", size);
-#endif
+//#endif
     void *drcontext  = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
     bool exectute_memcpy = false;

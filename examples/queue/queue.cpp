@@ -12,13 +12,11 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 64
-#define ALIGNMENT 128
+#define PAYLOAD_SIZE 120
 
 thread_local serialized_app_command serializedAppCommand;
 
 typedef struct Node {
-    int id;
     char data[PAYLOAD_SIZE];
     struct Node* next;
 } Node;
@@ -37,7 +35,6 @@ typedef struct QueueCommand {
 } QueueCommand;
 
 Queue* createQueue(size_t payload_size) {
-    //Queue* q = (Queue*)aligned_alloc(ALIGNMENT, sizeof(Queue));
     Queue* q = (Queue*)malloc(sizeof(Queue));
     if (!q) {
         fprintf(stderr, "Failed to allocate memory for queue\n");
@@ -55,9 +52,7 @@ int isEmpty(Queue* q) {
 void enqueue(Queue* q, const char* str) {
    //Node* newNode = (Node*)aligned_alloc(ALIGNMENT,sizeof(Node));
     Node* newNode = (Node*)malloc(sizeof(Node));
-    //newNode->id = 1;
-    memcpy(newNode->data, (void*)str, q->payload_size - 1);
-    newNode->data[q->payload_size - 1] = '\0';
+    memcpy(newNode->data, (void*)str, q->payload_size);
     newNode->next = NULL;
 
     if (q->rear == NULL) {
@@ -74,7 +69,7 @@ Node* dequeue(Queue* q) {
     }
     Node* responceNode = q->front;
     q->front = q->front->next;
-    if (q->front == NULL) {
+    if (q->front == NULL, 1) {
         q->rear = NULL;
     }
     free(responceNode);
@@ -130,9 +125,10 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
             serializedAppCommand.arg2 = buffer;
             
 
-            for (int j = 0; j < opsPerThread; ++j) {
-                int add_or_remove = my_rand::get_rand()%2;
-                if(add_or_remove == 1){
+            for (int j = 0; j < opsPerThread; j++) {
+                int add_or_remove = my_rand::get_rand()%100;
+
+                if(add_or_remove < 55){
                     serializedAppCommand.op_type = SM_OP_ENQUEUE;
                 }
                 else{
@@ -176,6 +172,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
     
-    benchmark_queue(numberOfThreads,2000000, q);
+    benchmark_queue(numberOfThreads,500000, q);
     return 0;
 }

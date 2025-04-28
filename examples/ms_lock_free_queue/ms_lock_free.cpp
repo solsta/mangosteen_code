@@ -286,6 +286,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
 #endif
-    benchmark_queue(numberOfThreads,500000, q);
+    benchmark_queue(numberOfThreads,5000000, q);
     return 0;
 }

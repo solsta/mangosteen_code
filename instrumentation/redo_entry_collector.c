@@ -30,7 +30,7 @@ void print_counter_value(int size){
 }
 
 void dump_address_to_overflow_buffer(uintptr_t addr, int size){
-    printf("Dumping hash set addr:%p ; size: %d\n", addr, size);
+    //printf("Dumping hash set addr:%p ; size: %d\n", addr, size);
 /*
     unsigned long alignedAddress;
     unsigned long bitmask = ~0UL << MASK_SHIFT;

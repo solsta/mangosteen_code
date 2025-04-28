@@ -13,17 +13,19 @@
 
 #define SM_OP_ENQUEUE 0
 #define SM_OP_DEQUEUE 1
-#define PAYLOAD_SIZE 120
 #define RUN_WITH_MANGOSTEEN
+
+
+#define NODE_SIZE 120
 
 std::mutex headMutex;
 std::mutex tailMutex;
 
 thread_local serialized_app_command serializedAppCommand;
-volatile thread_local char *responseBuffer[PAYLOAD_SIZE];
+volatile thread_local char *responseBuffer[NODE_SIZE];
 
 typedef struct Node {
-    char data[PAYLOAD_SIZE];
+    char data[NODE_SIZE];
     struct Node* next;
 } Node;
 
@@ -49,8 +51,9 @@ Queue* createQueue(size_t payload_size) {
 
 void enqueue(Queue* q, const char* str) {
     Node* newNode = (Node*)malloc(sizeof(Node));
-    memcpy(newNode->data, (void*)str, PAYLOAD_SIZE - 1);
-    newNode->data[PAYLOAD_SIZE - 1] = '\0';
+    memcpy(newNode->data, (void*)str, NODE_SIZE);
+    //instrumented_memcpy(newNode->data, (void*)str, NODE_SIZE - 1);
+    //newNode->data[NODE_SIZE - 1] = '\0';
     newNode->next = NULL;
  #ifndef RUN_WITH_MANGOSTEEN
     tailMutex.lock();
@@ -127,15 +130,15 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
 #endif
             my_rand::init(i);
 
-            char buffer[PAYLOAD_SIZE];
+            char buffer[NODE_SIZE];
             
             serializedAppCommand.arg1 = q;
             serializedAppCommand.arg2 = buffer;
             
 
             for (int j = 0; j < opsPerThread; ++j) {
-                int add_or_remove = my_rand::get_rand()%2;
-                if(add_or_remove == 1){
+                int add_or_remove = my_rand::get_rand()%100;
+                if(add_or_remove < 55){
 #ifdef RUN_WITH_MANGOSTEEN
                     serializedAppCommand.op_type = SM_OP_ENQUEUE;
 #else
@@ -161,6 +164,7 @@ void benchmark_queue(int numThreads, int opsPerThread, Queue* q) {
     auto endTime = std::chrono::high_resolution_clock::now();
     double elapsedSec = std::chrono::duration<double>(endTime - startTime).count();
 
+    printf("Node size : %d\n", NODE_SIZE + 8);
     printf("Total operations: %d\n", totalOps);
     printf("Elapsed time: %.6f seconds\n", elapsedSec);
     printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
@@ -173,9 +177,9 @@ int main(int argc, char *argv[]) {
     }
 
     int numberOfThreads = atoi(argv[1]);
-    size_t payload_size = PAYLOAD_SIZE;
+    size_t payload_size = NODE_SIZE;
     Queue* q = createQueue(payload_size);
-    char buf[PAYLOAD_SIZE];
+    char buf[NODE_SIZE];
     for(int i=0; i < 128; i++){
         enqueue(q,buf);
     }
