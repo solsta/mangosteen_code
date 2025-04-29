@@ -1,8 +1,19 @@
+#include "../../mangosteen_instrumentation.h"
+#include "../../flat_combining/dr_annotations.h"
+#include "/home/se00598/home/se00598/vanila_flit/flit/common/rand_r_32.h"
+#include <jemalloc/jemalloc.h>
+#include <thread>
+#include <chrono>
+#include <vector>
 #include <iostream>
 #include <string>
 #include <memory>
-#include <pthread.h>
 #include <string.h>
+
+// ---------------------- Mongosteen code ----------------------
+thread_local serialized_app_command serializedAppCommand;
+#define SM_OP_ENQUEUE 0
+#define SM_OP_DEQUEUE 1
 
 // ---------------------- Node ----------------------
 template <size_t PayloadSize>
@@ -120,18 +131,78 @@ std::unique_ptr<AbstractQueue> make_queue(const std::string& type, size_t payloa
     return nullptr;
 }
 
-// ---------------------- Thread Function ----------------------
-void* thread_func(void* arg) {
-    AbstractQueue* q = static_cast<AbstractQueue*>(arg);
-    q->enqueue("Hello from thread");
-    q->dequeue();
-    return nullptr;
+
+
+bool isReadOnly(serialized_app_command *serializedAppCommand){
+    return false;
+}
+
+
+
+void processRequest(serialized_app_command *serializedAppCommand){
+    AbstractQueue *q = static_cast<AbstractQueue*>(serializedAppCommand->arg1);
+
+    if(serializedAppCommand->op_type == SM_OP_ENQUEUE){
+        char *payload = static_cast<char*>(serializedAppCommand->arg2);
+        q->enqueue(payload);
+    } else if(serializedAppCommand->op_type == SM_OP_DEQUEUE){
+        serializedAppCommand->responsePtr = q->dequeue();
+    } else{
+        printf("Unknown command\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+void benchmark_queue(int numThreads, int opsPerThread, AbstractQueue* q, size_t payload_size) {
+    const int totalOps = numThreads * opsPerThread;
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> workers;
+    for (int i = 0; i < numThreads; i++) {
+
+        workers.emplace_back([=]() {
+            mangosteen_args *mangosteenArgs;
+            initialise_mangosteen(mangosteenArgs);
+            my_rand::init(i);
+
+            char buffer[payload_size];
+            
+            serializedAppCommand.arg1 = q;
+            serializedAppCommand.arg2 = buffer;
+            
+
+            for (int j = 0; j < opsPerThread; ++j) {
+                int add_or_remove = my_rand::get_rand()%100;
+                if(add_or_remove < 55){
+                    serializedAppCommand.op_type = SM_OP_ENQUEUE;
+                }
+                else{
+                    serializedAppCommand.op_type = SM_OP_DEQUEUE;
+                }
+                clientCmd(&serializedAppCommand);
+            }
+        });
+    }
+
+    for (auto& t : workers) t.join();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    double elapsedSec = std::chrono::duration<double>(endTime - startTime).count();
+
+    printf("Node size : %d\n", payload_size + 8);
+    printf("Total operations: %d\n", totalOps);
+    printf("Elapsed time: %.6f seconds\n", elapsedSec);
+    printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
 }
 
 // ---------------------- Main ----------------------
 int main(int argc, char** argv) {
     std::string queue_type = "QueueA";
     size_t payload_size = 128;
+
+
+    
 
     if (argc >= 3) {
         queue_type = argv[1];
@@ -144,14 +215,23 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    AbstractQueue* q_ptr = queue.get();
+    AbstractQueue* q = queue.get();
 
-    pthread_t thread;
-    if (pthread_create(&thread, nullptr, thread_func, q_ptr) != 0) {
-        std::cerr << "Failed to create thread\n";
-        return 1;
+    char buf[payload_size];
+    for(int i=0; i < 128; i++){
+        q->enqueue(buf);
     }
+    
+    //Mangosteen initialization
+    mangosteen_args mangosteenArgs;
+    mangosteenArgs.isReadOnly = &isReadOnly;
+    mangosteenArgs.processRequest = &processRequest;
+    mangosteenArgs.mode = MULTI_THREAD;
 
-    pthread_join(thread, nullptr);
+    initialise_mangosteen(&mangosteenArgs);
+    printf("Mangosteen has initialized\n");
+
+
+    benchmark_queue(30,50000, q, payload_size);
     return 0;
 }
