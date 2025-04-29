@@ -919,7 +919,7 @@ event_bb_insert(void *drcontext, void *tag, instrlist_t *bb, instr_t *where,
 #    define DR_PARAM_INOUT /* marks input+output param */
 #endif
 
-#define MEMCPY_OVERWRITE
+//#define MEMCPY_OVERWRITE
 static void
 wrap_pre(void *wrapcxt, DR_PARAM_OUT void **user_data)
 //wrap_pre()
