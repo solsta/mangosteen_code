@@ -247,6 +247,10 @@ std::unique_ptr<AbstractQueue> make_queue(const char type, size_t payload_size) 
         return std::make_unique<QueueWrapper<Node<128-8>>>(new QueueA<Node<128-8>>());
     if (type == 'A' && payload_size == 256)
         return std::make_unique<QueueWrapper<Node<256-8>>>(new QueueA<Node<256-8>>());
+    if (type == 'A' && payload_size == 512)
+        return std::make_unique<QueueWrapper<Node<512-8>>>(new QueueA<Node<512-8>>());
+    if (type == 'A' && payload_size == 1024)
+        return std::make_unique<QueueWrapper<Node<1024-8>>>(new QueueA<Node<1024-8>>());
     
     if (type == 'B' && payload_size == 64)
         return std::make_unique<QueueWrapper<Node<64-8>>>(new QueueB<Node<64-8>>());
@@ -254,7 +258,10 @@ std::unique_ptr<AbstractQueue> make_queue(const char type, size_t payload_size) 
         return std::make_unique<QueueWrapper<Node<128-8>>>(new QueueB<Node<128-8>>());
     if (type == 'B' && payload_size == 256)
         return std::make_unique<QueueWrapper<Node<256-8>>>(new QueueB<Node<256-8>>());
-
+    if (type == 'B' && payload_size == 512)
+        return std::make_unique<QueueWrapper<Node<512-8>>>(new QueueB<Node<512-8>>());
+    if (type == 'B' && payload_size == 1024)
+        return std::make_unique<QueueWrapper<Node<1024-8>>>(new QueueB<Node<1024-8>>());
 
     if (type == 'C' && payload_size == 64)
         return std::make_unique<QueueWrapper<LockFreeNode<64-8>>>(new QueueC<LockFreeNode<64-8>>());
@@ -262,6 +269,10 @@ std::unique_ptr<AbstractQueue> make_queue(const char type, size_t payload_size) 
         return std::make_unique<QueueWrapper<LockFreeNode<128-8>>>(new QueueC<LockFreeNode<128-8>>());
     if (type == 'C' && payload_size == 256)
         return std::make_unique<QueueWrapper<LockFreeNode<256-8>>>(new QueueC<LockFreeNode<256-8>>());
+    if (type == 'C' && payload_size == 512)
+        return std::make_unique<QueueWrapper<LockFreeNode<512-8>>>(new QueueC<LockFreeNode<512-8>>());
+    if (type == 'C' && payload_size == 1024)
+        return std::make_unique<QueueWrapper<LockFreeNode<1024-8>>>(new QueueC<LockFreeNode<1024-8>>());
     return nullptr;
 }
 
