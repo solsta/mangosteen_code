@@ -68,7 +68,6 @@ void process_entry(ring_buffer *ringBuffer, region_table *regionTable) {
 #ifdef DEBUG_MANGOSTEEN_MAIN
           printf("Consumer mmaping entry addr %p, size: %lu\n", ringBufferMapEntry->addr, ringBufferMapEntry->size);
 #endif
-          printf("Consumer mmaping entry addr %p, size: %lu\n", ringBufferMapEntry->addr, ringBufferMapEntry->size);
           region_table_create_memory_region(regionTable, ringBufferMapEntry->addr, ringBufferMapEntry->size);
 #ifdef DEBUG_MANGOSTEEN_MAIN
           printf("MMAP Done\n");
