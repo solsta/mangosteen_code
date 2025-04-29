@@ -76,12 +76,46 @@ QueueA () {
 template <typename NodeType>
 class QueueB : public IQueue<NodeType> {
 public:
+    NodeType* front;
+    NodeType* rear;
+    
     void enqueue(const char* payload) override {
-        std::cout << "[QueueB] Enqueue: " << payload << "\n";
+        NodeType* newNode = (NodeType*)malloc(sizeof(NodeType));
+        memcpy(newNode->payload, (void*)payload, sizeof(NodeType));
+        newNode->next = NULL;
+    
+        if (rear == NULL) {
+            front = rear = newNode;
+        } else {
+            rear->next = newNode;
+            rear = newNode;
+        }
     }
 
     NodeType* dequeue() override {
-        std::cout << "[QueueB] Dequeue\n";
+        if (front == NULL) {
+            return NULL;
+        }
+        NodeType* responceNode = front;
+        front = front->next;
+        if (front == NULL) {
+            rear = NULL;
+        }
+        free(responceNode);
+        return nullptr;
+    }
+};
+
+// ---------------------- QueueC implementation ----------------------
+template <typename NodeType>
+class QueueC : public IQueue<NodeType> {
+public:
+    void enqueue(const char* payload) override {
+        std::cout << "[QueueC] Enqueue: " << payload << "\n";
+    }
+
+    NodeType* dequeue() override {
+        std::cout << "[QueueC] Dequeue\n";
         return nullptr;
     }
 };
