@@ -10,8 +10,8 @@ private:
     QueueA<NodeType> q;
 
 public:
-    void enqueue(NodeType* node) override {
-        q.enqueue(node);
+    void enqueue(char *payload) override {
+        q.enqueue(payload);
     }
 
     NodeType* dequeue() override {

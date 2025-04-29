@@ -1,28 +1,45 @@
 // QueueA.h
 #pragma once
 
-#include <queue>
-#include <mutex>
+#include "node.h"
 
 template<typename NodeType>
 class QueueA {
-private:
-    std::queue<NodeType*> q;
-    std::mutex mtx;
 
 public:
-    void enqueue(NodeType* node) {
-        std::lock_guard<std::mutex> lock(mtx);
-        q.push(node);
-    }
+NodeType* front;
+NodeType* rear;
 
-    NodeType* dequeue() {
-        std::lock_guard<std::mutex> lock(mtx);
-        if (q.empty()) return nullptr;
-        NodeType* node = q.front();
-        q.pop();
-        return node;
+QueueA () {
+    NodeType *node = (NodeType*)malloc(sizeof(NodeType));
+    node->next = NULL;
+    front = rear = node;
+}
+
+
+void enqueue(char *payload) {
+    printf("Called enqueue\n");
+    NodeType* newNode = (NodeType*)malloc(sizeof(NodeType));
+    printf("Copying %d bytes\n",sizeof(NodeType));
+    printf("Src: %s\n", payload);
+    memcpy(newNode->payload, (void*)payload, sizeof(NodeType));
+    printf("Node payload: %s\n", newNode->payload);
+    newNode->next = NULL;
+    rear->next = newNode;
+    rear = newNode;
+}
+
+NodeType* dequeue() {
+    NodeType* node = front;
+    NodeType *new_head = node->next;
+    if (new_head == NULL) {
+        return NULL;
     }
+    printf("Node payload: %s\n", new_head->payload);
+    front = new_head;
+    free(node);
+    return NULL;
+}
 };
 
 /*

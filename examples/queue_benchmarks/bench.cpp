@@ -92,13 +92,13 @@ int main(int argc, char *argv[]) {
     char buf[128];
     
     benchNode* n = static_cast<benchNode*>(malloc(sizeof(benchNode)));
-    memcpy(n->payload,"Hello\n", 6);
-    q->enqueue(n);
-    benchNode* nt = static_cast<benchNode*>(malloc(sizeof(benchNode)));
-    memcpy(nt->payload,"world!\n", 6);
-    q->enqueue(nt);
-    printf("%s", q->dequeue()->payload);
-    printf("%s", q->dequeue()->payload);
+    memcpy(buf,"Hello\n", 6);
+
+    q->enqueue(buf);
+    q->dequeue();
+    memcpy(buf,"World\n", 6);
+    q->enqueue(buf);
+    q->dequeue();
 
     
     /*
