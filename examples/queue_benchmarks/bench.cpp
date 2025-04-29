@@ -53,12 +53,8 @@ QueueA () {
     front = rear = node;
 }
     void enqueue(const char* payload) override {
-        printf("Called enqueue\n");
         NodeType* newNode = (NodeType*)malloc(sizeof(NodeType));
-        printf("Copying %d bytes\n",sizeof(NodeType));
-        printf("Src: %s\n", payload);
         memcpy(newNode->payload, (void*)payload, sizeof(NodeType));
-        printf("Node payload: %s\n", newNode->payload);
         newNode->next = NULL;
         rear->next = newNode;
         rear = newNode;
@@ -70,7 +66,6 @@ QueueA () {
         if (new_head == NULL) {
             return NULL;
         }
-        printf("Node payload: %s\n", new_head->payload);
         front = new_head;
         free(node);
         return nullptr;
@@ -113,19 +108,19 @@ public:
 };
 
 // ---------------------- Factory ----------------------
-std::unique_ptr<AbstractQueue> make_queue(const std::string& type, size_t payload_size) {
-    if (type == "QueueA" && payload_size == 64)
+std::unique_ptr<AbstractQueue> make_queue(const char type, size_t payload_size) {
+    if (type == 'A' && payload_size == 64)
         return std::make_unique<QueueWrapper<Node<64>>>(new QueueA<Node<64>>());
-    if (type == "QueueA" && payload_size == 128)
+    if (type == 'A' && payload_size == 128)
         return std::make_unique<QueueWrapper<Node<128>>>(new QueueA<Node<128>>());
-    if (type == "QueueA" && payload_size == 256)
+    if (type == 'A' && payload_size == 256)
         return std::make_unique<QueueWrapper<Node<248>>>(new QueueA<Node<248>>());
     
-    if (type == "QueueB" && payload_size == 64)
+    if (type == 'B' && payload_size == 64)
         return std::make_unique<QueueWrapper<Node<64>>>(new QueueB<Node<64>>());
-    if (type == "QueueB" && payload_size == 128)
+    if (type == 'B' && payload_size == 128)
         return std::make_unique<QueueWrapper<Node<128>>>(new QueueB<Node<128>>());
-    if (type == "QueueB" && payload_size == 256)
+    if (type == 'B' && payload_size == 256)
         return std::make_unique<QueueWrapper<Node<248>>>(new QueueB<Node<248>>());
     
     return nullptr;
@@ -198,16 +193,19 @@ void benchmark_queue(int numThreads, int opsPerThread, AbstractQueue* q, size_t 
 
 // ---------------------- Main ----------------------
 int main(int argc, char** argv) {
-    std::string queue_type = "QueueA";
-    size_t payload_size = 128;
+    //std::string queue_type = "QueueA";
+    //size_t payload_size = 128;
 
 
     
-
-    if (argc >= 3) {
-        queue_type = argv[1];
-        payload_size = std::stoul(argv[2]);
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s <queue_type> <num_threads> <payload_size>\n", argv[0]);
+        return 1;
     }
+
+    const char queue_type = argv[1][0];
+    int num_threads = atoi(argv[2]);
+    int payload_size = atoi(argv[3]);
 
     auto queue = make_queue(queue_type, payload_size);
     if (!queue) {
@@ -232,6 +230,6 @@ int main(int argc, char** argv) {
     printf("Mangosteen has initialized\n");
 
 
-    benchmark_queue(30,50000, q, payload_size);
+    benchmark_queue(num_threads,500000, q, payload_size);
     return 0;
 }
