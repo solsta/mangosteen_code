@@ -110,18 +110,18 @@ public:
 // ---------------------- Factory ----------------------
 std::unique_ptr<AbstractQueue> make_queue(const char type, size_t payload_size) {
     if (type == 'A' && payload_size == 64)
-        return std::make_unique<QueueWrapper<Node<64>>>(new QueueA<Node<64>>());
+        return std::make_unique<QueueWrapper<Node<64-8>>>(new QueueA<Node<64-8>>());
     if (type == 'A' && payload_size == 128)
-        return std::make_unique<QueueWrapper<Node<128>>>(new QueueA<Node<128>>());
+        return std::make_unique<QueueWrapper<Node<128-8>>>(new QueueA<Node<128-8>>());
     if (type == 'A' && payload_size == 256)
-        return std::make_unique<QueueWrapper<Node<248>>>(new QueueA<Node<248>>());
+        return std::make_unique<QueueWrapper<Node<256-8>>>(new QueueA<Node<256-8>>());
     
     if (type == 'B' && payload_size == 64)
-        return std::make_unique<QueueWrapper<Node<64>>>(new QueueB<Node<64>>());
+        return std::make_unique<QueueWrapper<Node<64-8>>>(new QueueB<Node<64-8>>());
     if (type == 'B' && payload_size == 128)
-        return std::make_unique<QueueWrapper<Node<128>>>(new QueueB<Node<128>>());
+        return std::make_unique<QueueWrapper<Node<128-8>>>(new QueueB<Node<128-8>>());
     if (type == 'B' && payload_size == 256)
-        return std::make_unique<QueueWrapper<Node<248>>>(new QueueB<Node<248>>());
+        return std::make_unique<QueueWrapper<Node<256-8>>>(new QueueB<Node<256-8>>());
     
     return nullptr;
 }
@@ -185,7 +185,7 @@ void benchmark_queue(int numThreads, int opsPerThread, AbstractQueue* q, size_t 
     auto endTime = std::chrono::high_resolution_clock::now();
     double elapsedSec = std::chrono::duration<double>(endTime - startTime).count();
 
-    printf("Node size : %d\n", payload_size + 8);
+    printf("Node size : %d\n", payload_size);
     printf("Total operations: %d\n", totalOps);
     printf("Elapsed time: %.6f seconds\n", elapsedSec);
     printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
