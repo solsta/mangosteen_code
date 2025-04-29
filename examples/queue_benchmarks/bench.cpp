@@ -152,7 +152,6 @@ QueueC(){
     front = rear = nodePtr;
 }
     void enqueue(const char* payload) override {
-        //printf("In enqueue, Node size is :%d\n",sizeof(NodeType));
 
         NodeType *node = (NodeType*)malloc(sizeof(NodeType));
         memcpy(node->payload, (void*)payload, sizeof(NodeType));
@@ -170,26 +169,23 @@ QueueC(){
             uint64_t packedNext =  reinterpret_cast<uint64_t>(cachedTailPtr->next);
     
             NodeType *nextNode = unpack_ptr(packedNext);
-            //printf("l 170\n");
+
             if(cachedTail == rear){
                 
                 if(nextNode == nullptr){ //Was tail pointing to the last node?
-                    //printf("l 176\n");
                     cachedTailPtr->next = reinterpret_cast<NodeType*>(pack(node, cachedTailCounter+1));
                     break;
                 } else{
-                    //printf("l 180\n");
                     rear = pack(nextNode, cachedTailCounter+1);
                 }
             }
         }
-        //printf("l 185\n");
         rear = pack(node, cachedTailCounter+1);
         
     }
 
     NodeType* dequeue() override {
-        //printf("In dequeue\n");
+   
         NodeType *cachedHeadPointer;
         while (true)
         {
@@ -204,7 +200,7 @@ QueueC(){
     
             uint64_t cachedTailCounter = unpack_counter(cachedTail);
             uint64_t cachedHeadCounter = unpack_counter(cachedHead);
-            //printf("l 200\n");
+   
             if(cachedHead == front){
                 if(cachedHeadPointer == cachedTailPointer){
                     if(nextNode == nullptr){
@@ -336,13 +332,8 @@ void benchmark_queue(int numThreads, int opsPerThread, AbstractQueue* q, size_t 
     printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
 }
 
-// ---------------------- Main ----------------------
 int main(int argc, char** argv) {
-    //std::string queue_type = "QueueA";
-    //size_t payload_size = 128;
 
-
-    
     if (argc < 4) {
         fprintf(stderr, "Usage: %s <queue_type> <num_threads> <payload_size>\n", argv[0]);
         return 1;
