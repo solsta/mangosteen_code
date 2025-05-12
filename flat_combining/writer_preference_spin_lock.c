@@ -28,9 +28,36 @@ void markReaderAsInactive(int thread_id){
 
 bool activeReadersSetIsEmpty(){
     int padding_size = 128/sizeof(int);
+    int readerIds[NUMBER_OF_THREADS];
+    int numberOfReaders = 0;
+
     for(int i=0; i < NUMBER_OF_THREADS; i++){
-        if(readers_set[i*padding_size] == READING){return false;}
+        if(readers_set[i*padding_size] == READING){
+            readerIds[numberOfReaders] = i;
+            numberOfReaders++;
+        }
     }
+    int remainingReadersCounter;
+    //printf("Draining readers\n");
+    while(true){
+        remainingReadersCounter = 0;
+        for (int i = 0; i < numberOfReaders; i++){
+            if(readerIds[i] >= 0){
+                if(readers_set[readerIds[i]*padding_size] == READING){
+                    remainingReadersCounter++;
+                }
+                else {
+                    readerIds[i] = -1;
+                }
+            }
+        }
+        //printf("Remaining readers: %d\n",remainingReadersCounter);
+        if(remainingReadersCounter == 0){
+            //printf("Reader drain complete\n");
+            break;
+        }
+    }
+
     //printf("Active reader set not empty!\n");
     return true;
 }
