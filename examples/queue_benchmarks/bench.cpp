@@ -148,6 +148,7 @@ std::atomic<uint64_t> rear;
 
 QueueC(){
     NodeType *node = (NodeType*)malloc(sizeof(NodeType));
+    node->next = nullptr;
     uint64_t nodePtr = pack(node,0);
     front = rear = nodePtr;
 }
