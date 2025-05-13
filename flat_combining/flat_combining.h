@@ -29,6 +29,7 @@ pthread_mutex_t mutex;
 #define DONE 1
 #define READY_TO_EXECUTE 2
 #define NONE 3
+#define THREAD_FINISHED 4
 #define READY_TO_INTIALISE 4
 //cpu_set_t cpuSet;
 

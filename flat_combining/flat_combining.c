@@ -82,18 +82,15 @@ struct profiling_data {
 void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct profiling_data *profilingData) {
     threadEntry->ready = READY_TO_EXECUTE;
     while (true) {
-#ifdef DEBUG_FLAT_COMBINING
-        printf("Thread %d is looping\n", threadEntry->thread_number);
-#endif
         if (threadEntry->ready == STARTED) {
+
+            instrument_start();
+            processRequestCallBack(threadEntry->applicationSpecificStruct);
+            instrument_stop(); // Needs to wait to be collected by the combiner
+            threadEntry->ready = THREAD_FINISHED;
             while (threadEntry->ready != DONE) {
                 Pause();
             }
-            threadEntry->ready = NONE;
-            break;
-        }
-        if (threadEntry->ready == DONE) {
-            threadEntry->ready = NONE;
             break;
         }
         if (__builtin_expect(lockIsFree(), 1)) {
@@ -101,28 +98,12 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                 int number_of_comamnds = 0;
                 int ready_commands_indexes[NUMBER_OF_THREADS];
 
-                int defferedMmapsCounter = 0;
-                const int defferedMmapsSize = 128;
-                ring_buffer_map_entry defferedMmaps[defferedMmapsSize];
-
-
-
-                //_mm_sfence();
-                instrument_start();
                 while (true) {
                     for (int i = 0; i < NUMBER_OF_THREADS; i++) {
                         if (taskArray[i].ready == READY_TO_EXECUTE) {
                             taskArray[i].ready = STARTED;
                             ready_commands_indexes[number_of_comamnds] = i;
                             number_of_comamnds++;
-                            /*
-                            int mmaps = taskArray[i].deferredMmapEntries.number_of_regions_in_this_batch;
-                            for(int j=0; j < mmaps; j++){
-                                memcpy(&defferedMmaps[defferedMmapsCounter], &taskArray[i].deferredMmapEntries.transient_mmap_entries[j], sizeof(ring_buffer_map_entry));
-                                defferedMmapsCounter+=1;
-                                assert(defferedMmapsCounter < defferedMmapsSize);
-                            }
-                             */
                         }
                     }
 
@@ -130,50 +111,31 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                         break;
                     }
                 }
-                //_mm_sfence();
-#ifdef DEBUG_FLAT_COMBINING
-                printf("Starting instrumentation\n");
-#endif
                 
-#ifdef SPLIT_ALLOCATOR
-                enableCombinerCallBack();
-#endif
-                _mm_sfence();
-#ifdef DEBUG_FLAT_COMBINING
-                printf("Post combiner call back\n");
-#endif
-/*
-                printf("Combiner collected %d mmaps:\n", defferedMmapsCounter);
-                for(int i =0; i < defferedMmapsCounter; i++){
-                    printf("addr: %p size: %lu\n", defferedMmaps[i].addr, defferedMmaps[i].size);
+                instrument_start();
+                processRequestCallBack(threadEntry->applicationSpecificStruct);
+                instrument_stop(); // Needs to syncronise with other buffers
+
+                //TODO: now wait for all threads to finish
+                
+                while(true){
+                    int finishedThreads = 0;
+                    for(int i = 0; i < number_of_comamnds; i++){
+                        if(taskArray[ready_commands_indexes[i]].ready == THREAD_FINISHED){
+                            finishedThreads++;
+                        }
+                    }
+                    if(finishedThreads == number_of_comamnds){
+                        break;
+                    }
                 }
-*/
-                // TODO investigate if fences are required... Also move this down after reader set is drained
 
-                volatile int index = 0;
-                while (index < number_of_comamnds) {
-#ifdef DEBUG_FLAT_COMBINING
-                    printf("Processing thread: %d\n", taskArray[ready_commands_indexes[index]].thread_number);
-#endif
-                    //TODO Prefetch before taking the lock?
-
-                    processRequestCallBack(taskArray[ready_commands_indexes[index]].applicationSpecificStruct);
-
-                    index++;
-                }
-                //_mm_sfence();
-                    instrument_stop();
-#ifdef SPLIT_ALLOCATOR
-                    disableCombinerCallBack();
-#endif
-
+                int index;
                 index = 0;
                 while (index < number_of_comamnds) {
                     taskArray[ready_commands_indexes[index]].ready = DONE;
                     index++;
                 }
-                threadEntry->ready = NONE;
-                _mm_sfence();
                 writeUnlock();
                 break;
             }
@@ -204,12 +166,6 @@ void exec_rw_flat_combining(struct thread_entry *threadEntry, struct profiling_d
             if (__builtin_expect(lockWriter(), 1)) {
                 int number_of_comamnds = 0;
                 int ready_commands_indexes[NUMBER_OF_THREADS];
-
-                int defferedMmapsCounter = 0;
-                const int defferedMmapsSize = 128;
-                ring_buffer_map_entry defferedMmaps[defferedMmapsSize];
-
-
 
                 //_mm_sfence();
                 instrument_start();

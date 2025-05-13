@@ -2,17 +2,27 @@
 // Created by se00598 on 20/07/23.
 //
 #ifdef __cplusplus
+#include <atomic>
 extern "C" {
 #endif
 
 #ifndef MANGOSTEEN_INSTRUMENTATION_MANGOSTEEN_INSTRUMENTATION_H
 #define MANGOSTEEN_INSTRUMENTATION_MANGOSTEEN_INSTRUMENTATION_H
 
+
+#ifdef __cplusplus
+    typedef std::atomic<int> atomic_int_t;
+#else
+    #include <stdatomic.h>
+    typedef _Atomic int atomic_int_t;
+#endif
+
 #include <pthread.h>
 #include <strings.h>
 #include <assert.h>
 #include <signal.h>
 #include "stdbool.h"
+//#include <stdatomic.h>
 
 #define mangosteenAllocatorArenaSize 2000
 #define SINGLE_THREAD 0
@@ -47,20 +57,20 @@ typedef struct serialized_app_command {
 /// APP SPECIFIC END
 
 struct thread_entry {
-    volatile sig_atomic_t ready;
+    atomic_int_t ready;
     char arr[124];
     //client *client;
     char arr2[120];
     char command_request[2048];
     void *applicationSpecificStruct;
-    sig_atomic_t command_length;
+    atomic_int_t command_length;
     int thread_number; //4
-    sig_atomic_t connection_file_descriptor; //4
+    atomic_int_t connection_file_descriptor; //4
     pthread_cond_t cv;//48
     pthread_cond_t rv;//48
     pthread_mutex_t cp;//40
     pthread_mutex_t rp;//40
-    sig_atomic_t connection_slot;//8
+    atomic_int_t connection_slot;//8
     bool is_recovering;
     struct pmemobjpool *pop;
     struct ring_buffer *rb;
