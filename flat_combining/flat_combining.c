@@ -87,7 +87,7 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
             printf("Thread %d starting\n", threadEntry->thread_number);
             instrument_start();
             processRequestCallBack(threadEntry->applicationSpecificStruct);
-            instrument_stop(); // Needs to wait to be collected by the combiner
+            instrument_stop_collection(); // Needs to wait to be collected by the combiner
             threadEntry->ready = THREAD_FINISHED;
             printf("Thread %d done, waiting for combiner flag\n", threadEntry->thread_number);
             while (threadEntry->ready != DONE) {
@@ -120,7 +120,7 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                 
                 instrument_start();
                 processRequestCallBack(threadEntry->applicationSpecificStruct);
-                instrument_stop(); // Needs to syncronise with other buffers
+                instrument_stop_collection(); // Needs to syncronise with other buffers
                 threadEntry->ready = THREAD_FINISHED;
                 //TODO: now wait for all threads to finish
                 printf("Thread %d is notifying other threads\n", threadEntry->thread_number);
@@ -135,6 +135,9 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                         break;
                     }
                 }
+
+                // Now complete combiner
+                instrument_complete_combiner_procedure(taskArray, number_of_comamnds);
 
                 int index;
                 index = 0;

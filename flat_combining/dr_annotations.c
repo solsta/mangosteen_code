@@ -2,6 +2,8 @@
 
 DR_DEFINE_ANNOTATION(void, instrument_start,(void), )
 DR_DEFINE_ANNOTATION(void, instrument_stop,(void), )
+DR_DEFINE_ANNOTATION(void, instrument_stop_collection,(void), )
+DR_DEFINE_ANNOTATION(void, instrument_complete_combiner_procedure,(int *workerThreadIds, int numberOfWorkers), )
 //DR_DEFINE_ANNOTATION(void, commit_mmaps,(int count, ring_buffer_map_entry *entries), )
 DR_DEFINE_ANNOTATION(void, reset_hash_set,(void), )
 DR_DEFINE_ANNOTATION(void, copyDataFromPersistentMemory,(void), )

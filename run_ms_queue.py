@@ -9,10 +9,10 @@ import statistics
 
 # List of thread counts
 #thread_counts = [4,8,16,24,30]
-thread_counts = [4]
+thread_counts = [1]
 payload_sizes = [128]
 #payload_sizes = [128,256,512,1024]
-queue_types = ['A', 'B', 'C']
+queue_types = ['C']
 #thread_counts = [30]
 
 

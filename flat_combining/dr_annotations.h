@@ -41,6 +41,11 @@ __attribute__((noinline, visibility("default")))void setCombinerToInitilise(void
 __attribute__((noinline, visibility("default")))void instrumented_memcpy(void *dest, void *src, size_t size)__attribute__((weak));
 
 
+
+__attribute__((noinline, visibility("default")))void instrument_stop_collection(void)__attribute__((weak));
+__attribute__((noinline, visibility("default")))void instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers)__attribute__((weak));
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -304,7 +304,7 @@ instrumented_memcpy(void *dest, void *src, size_t size){
 
 DR_EXPORT static void
 instrument_stop_collection(){
-    printf("Worker stopped collection\n");
+    dr_fprintf(STDERR,"Worker stopped collection\n");
     void *drcontext = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
     data->combiner = 0;
@@ -312,11 +312,11 @@ instrument_stop_collection(){
 
 DR_EXPORT static void
 instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers){
-    printf("Combiner is about to iterate over hash sets for entries:\n");
+    dr_fprintf(STDERR,"Combiner is about to iterate over hash sets for entries:\n");
     for(int i=0; i < numberOfWorkers; i++){
-         printf("%d\n", workerThreadIds[i]);
+         dr_fprintf(STDERR,"%d\n", workerThreadIds[i]);
     }
-    printf("Done\n");
+    dr_fprintf(STDERR,"Done\n");
 }
 
 DR_EXPORT static void
@@ -750,8 +750,7 @@ ringBuffer = instrument_args.ringBuffer;
     dr_annotation_register_call("instrument_stop", instrument_stop, false, 0,
                                 DR_ANNOTATION_CALL_TYPE_FASTCALL);
 
-    dr_annotation_register_call("instrument_stop_collection", instrument_stop_collection, false, 0,
-                                DR_ANNOTATION_CALL_TYPE_FASTCALL);
+
                         
     dr_annotation_register_call("reset_hash_set", reset_hash_set, false, 0,
                                 DR_ANNOTATION_CALL_TYPE_FASTCALL);
@@ -766,14 +765,16 @@ ringBuffer = instrument_args.ringBuffer;
         dr_annotation_register_call("setCombinerToInitilise", setCombinerToInitilise, false, 0,
                                     DR_ANNOTATION_CALL_TYPE_FASTCALL);
 
-        dr_annotation_register_call("instrument_complete_combiner_procedure", instrument_complete_combiner_procedure, false, 0,
-                                    DR_ANNOTATION_CALL_TYPE_FASTCALL);
-
-
-
         dr_annotation_register_call("instrumented_memcpy", instrumented_memcpy, false, 0,
                                     DR_ANNOTATION_CALL_TYPE_FASTCALL);
 
+        printf("771\n");
+
+        dr_annotation_register_call("instrument_complete_combiner_procedure", instrument_complete_combiner_procedure, false, 0,
+                                    DR_ANNOTATION_CALL_TYPE_FASTCALL);
+        dr_annotation_register_call("instrument_stop_collection", instrument_stop_collection, false, 0,
+                                    DR_ANNOTATION_CALL_TYPE_FASTCALL);
+        printf("777\n");
         tls_index = drmgr_register_tls_field();
 
         DR_ASSERT(tls_index != -1);
@@ -801,6 +802,7 @@ ringBuffer = instrument_args.ringBuffer;
     }
 #endif
     }
+    printf("805\n");
 }
 
 static void
@@ -864,14 +866,16 @@ event_thread_init(void *drcontext)
 
 #ifdef CONCURRENT_WRITERS
     dr_mutex_lock(mutex);
-    data->hash_set_entries = buffer_for_hash_sets_for_all_threads[currentThreadIndex*8*HASH_SET_SIZE];
+    int index = currentThreadIndex*8*HASH_SET_SIZE;
+    printf("Index: %d\n", index);
+    data->hash_set_entries = &buffer_for_hash_sets_for_all_threads[index];
     currentThreadIndex++;
     assert(currentThreadIndex < NUMBER_OF_THREADS);
     dr_mutex_unlock(mutex);
 #else
     data->hash_set_entries = dr_thread_alloc(drcontext,hash_set_size*8);
 #endif
-
+    printf("l 878\n");
     
     data->hash_set_metadata.size = hash_set_size;
     data->hash_set_metadata.maxElementsBeforeResize = (int)(hash_set_size * resize_threshold);
@@ -881,13 +885,15 @@ event_thread_init(void *drcontext)
     data->hash_set_metadata.numberOfResizes = 0;
     data->lastSyscall.sysnum = 0; // The check only cares about mmap calls
     bzero(data->hash_set_entries, hash_set_size*8);
+    printf("l 888\n");
     data->num_refs = 0;
     data->combiner = 0;
     data->skip_mmap = 0;
     data->deferredMmapEntries.number_of_regions_in_this_batch = 0;
     data->hashSetBypassBuffer = &hashSetBypassBuffer;
-#ifdef DEBUG_INSTRUMENTATION
     dr_fprintf(STDERR,"Thread is configured\n");
+#ifdef DEBUG_INSTRUMENTATION
+    
 #endif
 }
 
