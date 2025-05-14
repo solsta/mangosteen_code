@@ -164,6 +164,24 @@ static bool event_pre_syscall(void *drcontext, int sysnum)
     data->lastSyscall.size = (uint64_t)size;
     return true;
 }
+
+
+
+void log_mmap_entry(ring_buffer_map_entry *ringBufferMapEntry){
+       
+    data->thread_local_head = get_global_head_value(ringBuffer);
+    data->thread_local_tail = get_global_tail_value(ringBuffer);
+
+#ifdef LOG_TO_RING_BUFFER
+     ring_buffer_enqueue_mmap_entry(data->pmem_buffer, ringBufferMapEntry, &data->thread_local_head,
+                                    &data->thread_local_tail);
+     ring_buffer_commit_enqueued_entries(data->pmem_buffer, &data->thread_local_head, &data->thread_local_tail);
+#endif
+     set_global_head_value(data->thread_local_head,ringBuffer);
+     set_global_tail_value(data->thread_local_tail,ringBuffer);
+     mprotect(ringBufferMapEntry.addr, ringBufferMapEntry.size, PROT_WRITE | PROT_READ);
+}
+
 _Atomic int *fc_writers;
 static void event_post_syscall(void *drcontext, int sysnum) {
 
@@ -202,26 +220,21 @@ static void event_post_syscall(void *drcontext, int sysnum) {
                 }
             }
             ringBufferMapEntry.entry_type =TRANSIENT_MMAP_ENTRY;
+            log_mmap_entry(&ringBufferMapEntry);
+
+            if(data->combiner == 0){
+                *fc_writers = 0;
+            }
+        } else{ // This is a writer thread, now take lock on the ring buffer (No active readers)
+            dr_mutex_lock(mutex);
+            log_mmap_entry(&ringBufferMapEntry);
+            dr_mutex_unlock(mutex);
         }
+
+
 #ifdef DEBUG_INSTRUMENTATION
        printf("mmap addr %p of size: %lu, added\n",ringBufferMapEntry.addr, ringBufferMapEntry.size);
 #endif
-       
-       data->thread_local_head = get_global_head_value(ringBuffer);
-       data->thread_local_tail = get_global_tail_value(ringBuffer);
-
-#ifdef LOG_TO_RING_BUFFER
-        ring_buffer_enqueue_mmap_entry(data->pmem_buffer, &ringBufferMapEntry, &data->thread_local_head,
-                                       &data->thread_local_tail);
-        ring_buffer_commit_enqueued_entries(data->pmem_buffer, &data->thread_local_head, &data->thread_local_tail);
-#endif
-        set_global_head_value(data->thread_local_head,ringBuffer);
-        set_global_tail_value(data->thread_local_tail,ringBuffer);
-        mprotect(ringBufferMapEntry.addr, ringBufferMapEntry.size, PROT_WRITE | PROT_READ);
-
-        if(ringBufferMapEntry.entry_type == TRANSIENT_MMAP_ENTRY){
-            *fc_writers = 0;
-        }
 
     }
     // TODO implement munmap
@@ -810,6 +823,9 @@ event_thread_init(void *drcontext)
     data->pmem_buffer = ringBuffer;
     uint64_t addr = (uint64_t) data->pmem_buffer;
     assert(addr % 64 == 0);
+    // TODO:
+    // TAKE mutex and put an entry in the thread_local_hash_tables at index [index]
+    // then increment index (Can I even access the per thread data? Maybe I need to change the hash set to be placed on one sequential buffer?)
 
     int hash_set_size = HASH_SET_SIZE;
     double resize_threshold = 1;
