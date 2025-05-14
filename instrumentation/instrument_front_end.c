@@ -303,6 +303,23 @@ instrumented_memcpy(void *dest, void *src, size_t size){
 }
 
 DR_EXPORT static void
+instrument_stop_collection(){
+    printf("Worker stopped collection\n");
+    void *drcontext = dr_get_current_drcontext();
+    per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
+    data->combiner = 0;
+}
+
+DR_EXPORT static void
+instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers){
+    printf("Combiner is about to iterate over hash sets for entries:\n");
+    for(int i=0; i < numberOfWorkers; i++){
+         printf("%d\n", workerThreadIds[i]);
+    }
+    printf("Done\n");
+}
+
+DR_EXPORT static void
 instrument_stop()
 {
     void *drcontext = dr_get_current_drcontext();
@@ -732,6 +749,10 @@ ringBuffer = instrument_args.ringBuffer;
                                 DR_ANNOTATION_CALL_TYPE_FASTCALL);
     dr_annotation_register_call("instrument_stop", instrument_stop, false, 0,
                                 DR_ANNOTATION_CALL_TYPE_FASTCALL);
+
+    dr_annotation_register_call("instrument_stop_collection", instrument_stop_collection, false, 0,
+                                DR_ANNOTATION_CALL_TYPE_FASTCALL);
+                        
     dr_annotation_register_call("reset_hash_set", reset_hash_set, false, 0,
                                 DR_ANNOTATION_CALL_TYPE_FASTCALL);
         dr_annotation_register_call("copyDataFromPersistentMemory", copyDataFromPersistentMemory, false, 0,
@@ -744,6 +765,10 @@ ringBuffer = instrument_args.ringBuffer;
                                     DR_ANNOTATION_CALL_TYPE_FASTCALL);
         dr_annotation_register_call("setCombinerToInitilise", setCombinerToInitilise, false, 0,
                                     DR_ANNOTATION_CALL_TYPE_FASTCALL);
+
+        dr_annotation_register_call("instrument_complete_combiner_procedure", instrument_complete_combiner_procedure, false, 0,
+                                    DR_ANNOTATION_CALL_TYPE_FASTCALL);
+
 
 
         dr_annotation_register_call("instrumented_memcpy", instrumented_memcpy, false, 0,
