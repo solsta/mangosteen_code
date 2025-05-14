@@ -841,7 +841,7 @@ event_exit()
 
 #define NUMBER_OF_THREADS 30
 #define CONCURRENT_WRITERS
-char *buffer_for_hash_sets_for_all_threads[8*HASH_SET_SIZE*NUMBER_OF_THREADS];
+char buffer_for_hash_sets_for_all_threads[8*HASH_SET_SIZE*NUMBER_OF_THREADS];
 int currentThreadIndex = 0;
 
 static void
