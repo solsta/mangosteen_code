@@ -137,7 +137,7 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                 }
 
                 // Now complete combiner
-                instrument_complete_combiner_procedure(taskArray, number_of_comamnds);
+                instrument_complete_combiner_procedure(ready_commands_indexes, number_of_comamnds);
 
                 int index;
                 index = 0;
