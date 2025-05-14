@@ -167,8 +167,8 @@ static bool event_pre_syscall(void *drcontext, int sysnum)
 
 
 
-void log_mmap_entry(ring_buffer_map_entry *ringBufferMapEntry){
-       
+void log_mmap_entry(per_thread_t *data,ring_buffer_map_entry *ringBufferMapEntry){
+    
     data->thread_local_head = get_global_head_value(ringBuffer);
     data->thread_local_tail = get_global_tail_value(ringBuffer);
 
@@ -179,7 +179,7 @@ void log_mmap_entry(ring_buffer_map_entry *ringBufferMapEntry){
 #endif
      set_global_head_value(data->thread_local_head,ringBuffer);
      set_global_tail_value(data->thread_local_tail,ringBuffer);
-     mprotect(ringBufferMapEntry.addr, ringBufferMapEntry.size, PROT_WRITE | PROT_READ);
+     mprotect(ringBufferMapEntry->addr, ringBufferMapEntry->size, PROT_WRITE | PROT_READ);
 }
 
 _Atomic int *fc_writers;
@@ -220,14 +220,14 @@ static void event_post_syscall(void *drcontext, int sysnum) {
                 }
             }
             ringBufferMapEntry.entry_type =TRANSIENT_MMAP_ENTRY;
-            log_mmap_entry(&ringBufferMapEntry);
+            log_mmap_entry(data, &ringBufferMapEntry);
 
             if(data->combiner == 0){
                 *fc_writers = 0;
             }
         } else{ // This is a writer thread, now take lock on the ring buffer (No active readers)
             dr_mutex_lock(mutex);
-            log_mmap_entry(&ringBufferMapEntry);
+            log_mmap_entry(data, &ringBufferMapEntry);
             dr_mutex_unlock(mutex);
         }
 
@@ -639,6 +639,7 @@ dr_client_main(client_id_t id, int argc, const char *argv[])
 {
     dr_fprintf(STDERR,"starting initialisation 685\n");
     overflowBuffer.size = 0;
+    
 #ifdef COLLECT_REDO_LOG_METRICS
     totalMemcpy = 0;
     totalPersist = 0;
@@ -811,6 +812,11 @@ event_exit()
 #    define IF_WINDOWS(x) /* nothing */
 #endif
 
+#define NUMBER_OF_THREADS 30
+#define CONCURRENT_WRITERS
+char *buffer_for_hash_sets_for_all_threads[8*HASH_SET_SIZE*NUMBER_OF_THREADS];
+int currentThreadIndex = 0;
+
 static void
 event_thread_init(void *drcontext)
 {
@@ -830,7 +836,18 @@ event_thread_init(void *drcontext)
     int hash_set_size = HASH_SET_SIZE;
     double resize_threshold = 1;
     data->number_of_hash_set_entries = dr_thread_alloc(drcontext, sizeof(int));
+
+#ifdef CONCURRENT_WRITERS
+    dr_mutex_lock(mutex);
+    data->hash_set_entries = buffer_for_hash_sets_for_all_threads[currentThreadIndex*8*HASH_SET_SIZE];
+    currentThreadIndex++;
+    assert(currentThreadIndex < NUMBER_OF_THREADS);
+    dr_mutex_unlock(mutex);
+#else
     data->hash_set_entries = dr_thread_alloc(drcontext,hash_set_size*8);
+#endif
+
+    
     data->hash_set_metadata.size = hash_set_size;
     data->hash_set_metadata.maxElementsBeforeResize = (int)(hash_set_size * resize_threshold);
     data->hash_set_metadata.numberOfEntries = 0;
