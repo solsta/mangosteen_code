@@ -39,6 +39,12 @@ unsigned long totalMemcpy;
 unsigned long totalPersist;
 #endif
 
+#define NUMBER_OF_THREADS 30
+#define CONCURRENT_WRITERS
+int buffer_size = 8*HASH_SET_SIZE*NUMBER_OF_THREADS;
+char buffer_for_hash_sets_for_all_threads[8*HASH_SET_SIZE*NUMBER_OF_THREADS];
+int currentThreadIndex = -1;
+
 static ring_buffer *ringBuffer;
 
 typedef struct {
@@ -318,11 +324,37 @@ instrument_get_thread_id(int *arg){
     *arg = data->threadId;
 }
 
+void log_entries_for_given_thread(int threadId){
+    int offset = 8*threadId*HASH_SET_SIZE;
+    int start_index = offset;
+    printf("Start index:%d\n", start_index);
+    int counter = 0;
+    int entries_for_given_thread =0;
+    for(int i = 0; i < HASH_SET_SIZE; i++){
+        uint64_t raw;
+        void *locationOfPointer = &buffer_for_hash_sets_for_all_threads[start_index+i*8];
+        memcpy(&raw, locationOfPointer, 8);
+        if(raw != 0){
+            void* ptr = (void*)(uintptr_t)raw;
+            printf("Collected address: %p\n", ptr);
+            entries_for_given_thread++;
+        }
+        counter++;
+        
+    }
+    printf("Total entries checked: %d Entries found: %d\n", counter, entries_for_given_thread);
+}
+
 DR_EXPORT static void
 instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers){
     dr_fprintf(STDERR,"Combiner is about to iterate over hash sets for entries:\n");
+    //numberOfWorkers = 30;
+
     for(int i=0; i < numberOfWorkers; i++){
-         dr_fprintf(STDERR,"%d\n", workerThreadIds[i]);
+        //dr_fprintf(STDERR,"%d\n", workerThreadIds[i]);
+   }
+    for(int i=0; i < numberOfWorkers; i++){
+         log_entries_for_given_thread(i);
     }
     dr_fprintf(STDERR,"Done\n");
 }
@@ -664,6 +696,9 @@ dr_client_main(client_id_t id, int argc, const char *argv[])
 {
     dr_fprintf(STDERR,"starting initialisation 685\n");
     overflowBuffer.size = 0;
+    printf("Buffer size : %d\n", buffer_size);
+    bzero(buffer_for_hash_sets_for_all_threads, buffer_size);
+    printf("Buffered is cleared\n");
     
 #ifdef COLLECT_REDO_LOG_METRICS
     totalMemcpy = 0;
@@ -851,10 +886,7 @@ event_exit()
 #    define IF_WINDOWS(x) /* nothing */
 #endif
 
-#define NUMBER_OF_THREADS 30
-#define CONCURRENT_WRITERS
-char buffer_for_hash_sets_for_all_threads[8*HASH_SET_SIZE*NUMBER_OF_THREADS];
-int currentThreadIndex = -1;
+
 
 static void
 event_thread_init(void *drcontext)
@@ -890,11 +922,12 @@ event_thread_init(void *drcontext)
     }
     currentThreadIndex++;
     assert(currentThreadIndex < NUMBER_OF_THREADS);
-
+    bzero(data->hash_set_entries, hash_set_size*8);
 
     dr_mutex_unlock(mutex);
 #else
     data->hash_set_entries = dr_thread_alloc(drcontext,hash_set_size*8);
+    bzero(data->hash_set_entries, hash_set_size*8);
 #endif
     printf("l 878\n");
     
@@ -905,7 +938,7 @@ event_thread_init(void *drcontext)
     data->hash_set_metadata.numberOfCollisions = 0;
     data->hash_set_metadata.numberOfResizes = 0;
     data->lastSyscall.sysnum = 0; // The check only cares about mmap calls
-    bzero(data->hash_set_entries, hash_set_size*8);
+    
     printf("l 888\n");
     data->num_refs = 0;
     data->combiner = 0;
