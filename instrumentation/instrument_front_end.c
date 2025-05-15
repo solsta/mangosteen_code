@@ -854,7 +854,7 @@ event_exit()
 #define NUMBER_OF_THREADS 30
 #define CONCURRENT_WRITERS
 char buffer_for_hash_sets_for_all_threads[8*HASH_SET_SIZE*NUMBER_OF_THREADS];
-int currentThreadIndex = 0;
+int currentThreadIndex = -1;
 
 static void
 event_thread_init(void *drcontext)
@@ -878,12 +878,20 @@ event_thread_init(void *drcontext)
 
 #ifdef CONCURRENT_WRITERS
     dr_mutex_lock(mutex);
-    data->threadId = currentThreadIndex;
-    int offset = currentThreadIndex*8*HASH_SET_SIZE;
-    printf("Offset: %d\n", offset);
-    data->hash_set_entries = &buffer_for_hash_sets_for_all_threads[offset];
+
+    if(currentThreadIndex >=0){
+        data->threadId = currentThreadIndex;
+        int offset = currentThreadIndex*8*HASH_SET_SIZE;
+        printf("Offset: %d\n", offset);
+        data->hash_set_entries = &buffer_for_hash_sets_for_all_threads[offset];
+        
+    } else{
+        data->hash_set_entries = dr_thread_alloc(drcontext,hash_set_size*8); // This is for the main thread that does not participate in the FC.
+    }
     currentThreadIndex++;
     assert(currentThreadIndex < NUMBER_OF_THREADS);
+
+
     dr_mutex_unlock(mutex);
 #else
     data->hash_set_entries = dr_thread_alloc(drcontext,hash_set_size*8);
