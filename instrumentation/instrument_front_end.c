@@ -311,6 +311,14 @@ instrument_stop_collection(){
 }
 
 DR_EXPORT static void
+instrument_get_thread_id(int *arg){
+    dr_fprintf(STDERR,"Getting thread id\n");
+    void *drcontext = dr_get_current_drcontext();
+    per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
+    *arg = data->threadId;
+}
+
+DR_EXPORT static void
 instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers){
     dr_fprintf(STDERR,"Combiner is about to iterate over hash sets for entries:\n");
     for(int i=0; i < numberOfWorkers; i++){
@@ -774,6 +782,10 @@ ringBuffer = instrument_args.ringBuffer;
                                     DR_ANNOTATION_CALL_TYPE_FASTCALL);
         dr_annotation_register_call("instrument_stop_collection", instrument_stop_collection, false, 0,
                                     DR_ANNOTATION_CALL_TYPE_FASTCALL);
+
+        dr_annotation_register_call("instrument_get_thread_id", instrument_get_thread_id, false, 0,
+                                    DR_ANNOTATION_CALL_TYPE_FASTCALL);
+                                    
         printf("777\n");
         tls_index = drmgr_register_tls_field();
 
@@ -866,9 +878,10 @@ event_thread_init(void *drcontext)
 
 #ifdef CONCURRENT_WRITERS
     dr_mutex_lock(mutex);
-    int index = currentThreadIndex*8*HASH_SET_SIZE;
-    printf("Index: %d\n", index);
-    data->hash_set_entries = &buffer_for_hash_sets_for_all_threads[index];
+    data->threadId = currentThreadIndex;
+    int offset = currentThreadIndex*8*HASH_SET_SIZE;
+    printf("Offset: %d\n", offset);
+    data->hash_set_entries = &buffer_for_hash_sets_for_all_threads[offset];
     currentThreadIndex++;
     assert(currentThreadIndex < NUMBER_OF_THREADS);
     dr_mutex_unlock(mutex);

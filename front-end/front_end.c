@@ -28,7 +28,16 @@ void mangosteen_initialize_thread(){
     int tid = gettid();
     printf("Thread id: %d\n", tid);
     //int *thread_index = malloc(sizeof(int));
-    thread_index = global_thread_count;
+
+    int arg;
+    instrument_get_thread_id(&arg);
+    thread_index = arg;
+    printf("Thread in FC got thread index: %d\n", thread_index);
+    //thread_index = global_thread_count;
+
+    
+
+
     //pthread_setspecific(per_thread_key, &thread_index);
     //int *thread_index = pthread_getspecific(per_thread_key);
     taskArray[thread_index].ready = NONE;

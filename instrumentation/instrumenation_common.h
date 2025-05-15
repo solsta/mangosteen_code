@@ -148,6 +148,7 @@ typedef struct {
     deferred_mmap_entries deferredMmapEntries;
     hash_set_bypass_buffer *hashSetBypassBuffer;
     memcpy_array memcpyArray;
+    int threadId;
 } per_thread_t;
 
 static void collect_payload_and_store_to_pmem(per_thread_t *data, bool commit)

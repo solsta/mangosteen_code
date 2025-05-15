@@ -44,7 +44,7 @@ __attribute__((noinline, visibility("default")))void instrumented_memcpy(void *d
 
 __attribute__((noinline, visibility("default")))void instrument_stop_collection(void)__attribute__((weak));
 __attribute__((noinline, visibility("default")))void instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers)__attribute__((weak));
-
+__attribute__((noinline, visibility("default")))void instrument_get_thread_id(int *arg)__attribute__((weak));
 
 #ifdef __cplusplus
 }
