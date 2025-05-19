@@ -110,17 +110,12 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                 int ready_commands_indexes[NUMBER_OF_THREADS];
                 //printf("Thread %d is combiner\n", threadEntry->thread_number);
                 //sleep(1);
-                while (true) {
-                    for (int i = 0; i < NUMBER_OF_THREADS; i++) {
-                        if (taskArray[i].ready == READY_TO_EXECUTE) {
-                            taskArray[i].ready = STARTED;
-                            ready_commands_indexes[number_of_comamnds] = i;
-                            number_of_comamnds++;
-                        }
-                    }
-                    //printf("Thread %d is draining readers\n", threadEntry->thread_number);
-                    if (activeReadersSetIsEmpty()) { // This means we are still waiting for readers to drain
-                        break;
+                activeReadersSetIsEmpty();
+                for (int i = 0; i < NUMBER_OF_THREADS; i++) {
+                    if (taskArray[i].ready == READY_TO_EXECUTE) {
+                        taskArray[i].ready = STARTED;
+                        ready_commands_indexes[number_of_comamnds] = i;
+                        number_of_comamnds++;
                     }
                 }
                 //sleep(1);
