@@ -16,6 +16,7 @@
 #include "back-end/back_end.h"
 #include "front-end/front_end.h"
 
+
 char *front_end_dir = "/home/vagrant/criu_service/initial_snapshot";
 
 void take_initial_checkpoint(char *path) {

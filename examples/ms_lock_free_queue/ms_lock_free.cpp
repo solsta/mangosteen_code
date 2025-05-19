@@ -112,8 +112,10 @@ void enqueue(Queue *q, char *payload, int payloadSize){
             if(nextNode == NULL){ //Was tail pointing to the last node?
 
 #ifdef RUN_WITH_MANGOSTEEN
-                cachedTailPtr->next = pack(node, cachedTailCounter+1);
-                break;
+bool res = cachedTailPtr->next.compare_exchange_strong(packedNext, pack(node, cachedTailCounter+1));
+if(res){
+    break;
+}
 #else
 
                 bool res = cachedTailPtr->next.compare_exchange_strong(packedNext, pack(node, cachedTailCounter+1));
@@ -123,7 +125,7 @@ void enqueue(Queue *q, char *payload, int payloadSize){
 #endif
             } else{
 #ifdef RUN_WITH_MANGOSTEEN
-                q->tail = pack(nextNode, cachedTailCounter+1);
+q->tail.compare_exchange_strong(cachedTail, pack(nextNode, cachedTailCounter+1));
 #else
                 q->tail.compare_exchange_strong(cachedTail, pack(nextNode, cachedTailCounter+1));
 #endif
@@ -131,7 +133,7 @@ void enqueue(Queue *q, char *payload, int payloadSize){
         }
     }
 #ifdef RUN_WITH_MANGOSTEEN
-    q->tail = pack(node, cachedTailCounter+1);
+q->tail.compare_exchange_strong(cachedTail, pack(node, cachedTailCounter+1));
 #else
     q->tail.compare_exchange_strong(cachedTail, pack(node, cachedTailCounter+1));
 #endif
@@ -161,7 +163,7 @@ bool dequeue(Queue *q, char *response){
                     return false;
                 }
 #ifdef RUN_WITH_MANGOSTEEN
-              q->tail = pack(nextNode,cachedTailCounter+1);
+q->tail.compare_exchange_strong(cachedTail,pack(nextNode,cachedTailCounter+1));
 #else
               q->tail.compare_exchange_strong(cachedTail,pack(nextNode,cachedTailCounter+1));
 #endif
@@ -172,8 +174,10 @@ bool dequeue(Queue *q, char *response){
 
 
 #ifdef RUN_WITH_MANGOSTEEN
-                q->head = pack(nextNode,cachedHeadCounter+1);
-                break;
+nextNode->nodePayload;
+if(q->head.compare_exchange_strong(cachedHead,pack(nextNode,cachedHeadCounter+1))){
+    break;
+}
 #else
                 nextNode->nodePayload;
                 if(q->head.compare_exchange_strong(cachedHead,pack(nextNode,cachedHeadCounter+1))){
@@ -286,6 +290,6 @@ int main(int argc, char *argv[]) {
     initialise_mangosteen(&mangosteenArgs);
     printf("Mangosteen has initialized\n");
 #endif
-    benchmark_queue(numberOfThreads,5000000, q);
+    benchmark_queue(numberOfThreads,50000, q);
     return 0;
 }

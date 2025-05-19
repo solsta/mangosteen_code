@@ -16,6 +16,7 @@
 #include "../flat_combining/flat_combining.h"
 #include "../region_table/region_table.h"
 #include "../netutils/netutils.h"
+#include "../configuration.h"
 
 int global_thread_count = 0;
 
@@ -28,13 +29,16 @@ void mangosteen_initialize_thread(){
     int tid = gettid();
     printf("Thread id: %d\n", tid);
     //int *thread_index = malloc(sizeof(int));
-
+#ifdef RUN_WITHOUT_INSTRUMENTATION
+    thread_index = global_thread_count;
+    global_thread_count++;
+#else
     int arg;
     instrument_get_thread_id(&arg);
     thread_index = arg;
     printf("Thread in FC got thread index: %d\n", thread_index);
     //thread_index = global_thread_count;
-
+#endif
     
 
 
@@ -47,7 +51,7 @@ void mangosteen_initialize_thread(){
     //taskArray[*thread_index].handle = transient_allocator_handle;
     explicit_bzero(&taskArray[thread_index].command_request, 2048);
 
-    global_thread_count++;
+   
 
     configure_cpu_set(&taskArray[thread_index]);
     pthread_mutex_unlock(&mutex);

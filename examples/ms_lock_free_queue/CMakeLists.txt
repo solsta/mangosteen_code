@@ -9,7 +9,7 @@ add_compile_options(
     -Wno-uninitialized
     -Wno-unused-parameter
     -Wl,-zdefs
-    -O3
+    -g
 )
 
 # Use modern C++ standard

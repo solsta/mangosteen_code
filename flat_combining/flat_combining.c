@@ -81,28 +81,35 @@ struct profiling_data {
 
 void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct profiling_data *profilingData) {
     threadEntry->ready = READY_TO_EXECUTE;
-    printf("Thread %d on line 84 \n", threadEntry->thread_number);
+    //printf("Thread %d on line 84 \n", threadEntry->thread_number);
     while (true) {
+        //printf("Thread %d is in the big loop \n", threadEntry->thread_number);
         if (threadEntry->ready == STARTED) {
-            printf("Thread %d starting\n", threadEntry->thread_number);
+            //printf("Thread %d starting\n", threadEntry->thread_number);
             instrument_start();
             processRequestCallBack(threadEntry->applicationSpecificStruct);
             instrument_stop_collection(); // Needs to wait to be collected by the combiner
             threadEntry->ready = THREAD_FINISHED;
-            printf("Thread %d done, waiting for combiner flag\n", threadEntry->thread_number);
+            //printf("Thread %d done, waiting for combiner flag\n", threadEntry->thread_number);
             while (threadEntry->ready != DONE) {
                 Pause();
+                //printf("Thread %d stuck on line 95\n", threadEntry->thread_number);
+                
             }
+            //printf("Worker Thread %d unstuck\n", threadEntry->thread_number);
+            break;
+        }
+        if(threadEntry->ready == DONE) {
             break;
         }
         //printf("Thread %d is trying to become combiner\n", threadEntry->thread_number);
         if (__builtin_expect(lockIsFree(), 1)) {
-            printf("Thread %d is trying to take writer flag\n", threadEntry->thread_number);
+            //printf("Thread %d is trying to take writer flag\n", threadEntry->thread_number);
             if (__builtin_expect(lockWriter(), 1)) {
                 int number_of_comamnds = 0;
                 int ready_commands_indexes[NUMBER_OF_THREADS];
-                printf("Thread %d is combiner\n", threadEntry->thread_number);
-                sleep(1);
+                //printf("Thread %d is combiner\n", threadEntry->thread_number);
+                //sleep(1);
                 while (true) {
                     for (int i = 0; i < NUMBER_OF_THREADS; i++) {
                         if (taskArray[i].ready == READY_TO_EXECUTE) {
@@ -111,19 +118,25 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                             number_of_comamnds++;
                         }
                     }
-                    printf("Thread %d is draining readers\n", threadEntry->thread_number);
+                    //printf("Thread %d is draining readers\n", threadEntry->thread_number);
                     if (activeReadersSetIsEmpty()) { // This means we are still waiting for readers to drain
                         break;
                     }
                 }
-                sleep(1);
+                //sleep(1);
+                if(threadEntry->applicationSpecificStruct !=DONE){
+                    instrument_start();
+                    processRequestCallBack(threadEntry->applicationSpecificStruct);
+                    instrument_stop_collection(); // Needs to syncronise with other buffers
+                    threadEntry->ready = THREAD_FINISHED;
+                } else{
+                    // Thread was able to acquire a lock after it's status has been changed by another thread
+                    assert(false);
+                }
                 
-                instrument_start();
-                processRequestCallBack(threadEntry->applicationSpecificStruct);
-                instrument_stop_collection(); // Needs to syncronise with other buffers
-                threadEntry->ready = THREAD_FINISHED;
+
                 //TODO: now wait for all threads to finish
-                printf("Thread %d is notifying other threads\n", threadEntry->thread_number);
+                //printf("Thread %d is notifying other threads\n", threadEntry->thread_number);
                 while(true){
                     int finishedThreads = 0;
                     for(int i = 0; i < number_of_comamnds; i++){
@@ -132,10 +145,15 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                         }
                     }
                     if(finishedThreads == number_of_comamnds){
+                        //printf("Thread %d is unstuck\n", threadEntry->thread_number);
                         break;
                     }
+                    //printf("Thread %d stuck on line 139 Finished threads: %d Number of commands: %d\n", 
+                       // threadEntry->thread_number, 
+                       // finishedThreads,
+                       // number_of_comamnds);
                 }
-
+                //printf("Thread %d is completing combiner\n", threadEntry->thread_number);
                 // Now complete combiner
                 instrument_complete_combiner_procedure(ready_commands_indexes, number_of_comamnds);
 
@@ -147,7 +165,7 @@ void exec_rw_flat_combining_concurrent(struct thread_entry *threadEntry, struct 
                 }
                 
                 
-                printf("Unlocking\n");
+                //printf("Unlocking\n");
                 writeUnlock();
                 break;
             }
@@ -291,7 +309,7 @@ void execute_using_flat_combining_no_rpc(serialized_app_command *serializedAppCo
     
 */
 //printf("calling exec rw\n");
-        printf("Thread %d on line 288 \n", threadEntry->thread_number);
+        //printf("Thread %d on line 288 \n", threadEntry->thread_number);
         exec_rw_flat_combining_concurrent(threadEntry, NULL);
         reset_hash_set();
 /*

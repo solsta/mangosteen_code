@@ -310,7 +310,7 @@ instrumented_memcpy(void *dest, void *src, size_t size){
 
 DR_EXPORT static void
 instrument_stop_collection(){
-    dr_fprintf(STDERR,"Worker stopped collection\n");
+    //dr_fprintf(STDERR,"Worker stopped collection\n");
     void *drcontext = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
     data->combiner = 0;
@@ -327,7 +327,7 @@ instrument_get_thread_id(int *arg){
 void log_entries_for_given_thread(int threadId){
     int offset = 8*threadId*HASH_SET_SIZE;
     int start_index = offset;
-    printf("Start index:%d\n", start_index);
+    //printf("Start index:%d\n", start_index);
     int counter = 0;
     int entries_for_given_thread =0;
     for(int i = 0; i < HASH_SET_SIZE; i++){
@@ -336,27 +336,27 @@ void log_entries_for_given_thread(int threadId){
         memcpy(&raw, locationOfPointer, 8);
         if(raw != 0){
             void* ptr = (void*)(uintptr_t)raw;
-            printf("Collected address: %p\n", ptr);
+            //printf("Collected address: %p\n", ptr);
             entries_for_given_thread++;
         }
         counter++;
         
     }
-    printf("Total entries checked: %d Entries found: %d\n", counter, entries_for_given_thread);
+    //printf("Total entries checked: %d Entries found: %d\n", counter, entries_for_given_thread);
 }
 
 DR_EXPORT static void
 instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers){
-    dr_fprintf(STDERR,"Combiner is about to iterate over hash sets for entries:\n");
+    //dr_fprintf(STDERR,"Combiner is about to iterate over hash sets for entries:\n");
     //numberOfWorkers = 30;
-
     for(int i=0; i < numberOfWorkers; i++){
-        //dr_fprintf(STDERR,"%d\n", workerThreadIds[i]);
-   }
-    for(int i=0; i < numberOfWorkers; i++){
-         log_entries_for_given_thread(i);
+        //printf("About to iterate over thread: %d\n", workerThreadIds[i]);
+         log_entries_for_given_thread(workerThreadIds[i]);
     }
-    dr_fprintf(STDERR,"Done\n");
+    void *drcontext = dr_get_current_drcontext();
+    per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
+    *data->number_of_hash_set_entries = 0;
+    //dr_fprintf(STDERR,"Done\n");
 }
 
 DR_EXPORT static void
@@ -910,7 +910,7 @@ event_thread_init(void *drcontext)
 
 #ifdef CONCURRENT_WRITERS
     dr_mutex_lock(mutex);
-
+    assert(currentThreadIndex < NUMBER_OF_THREADS);
     if(currentThreadIndex >=0){
         data->threadId = currentThreadIndex;
         int offset = currentThreadIndex*8*HASH_SET_SIZE;
@@ -921,7 +921,7 @@ event_thread_init(void *drcontext)
         data->hash_set_entries = dr_thread_alloc(drcontext,hash_set_size*8); // This is for the main thread that does not participate in the FC.
     }
     currentThreadIndex++;
-    assert(currentThreadIndex < NUMBER_OF_THREADS);
+    
     bzero(data->hash_set_entries, hash_set_size*8);
 
     dr_mutex_unlock(mutex);

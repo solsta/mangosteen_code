@@ -42,7 +42,7 @@ void dump_address_to_overflow_buffer(uintptr_t addr, int size){
 
     overflowBuffer.buffer[overflowBuffer.size] = (void *) addr;
     overflowBuffer.size+=1;
-    printf("Dumping complete, entries: %d\n", overflowBuffer.size);
+    //printf("Dumping complete, entries: %d\n", overflowBuffer.size);
 
 }
 
