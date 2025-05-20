@@ -23,7 +23,7 @@ public:
   }
 
   ~ssmem_wrapper() {
-     ssmem_alloc_term(allocator);
+     //ssmem_alloc_term(allocator);
   }
 
   void* alloc(int size, bool flush = true) {
@@ -37,7 +37,7 @@ public:
 
 struct ssmem_destructor {
   ~ssmem_destructor() {
-    ssmem_term();
+    //ssmem_term();
   }
 };
 

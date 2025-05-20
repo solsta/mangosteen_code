@@ -238,7 +238,10 @@ public:
             Node* n = getAdd(head->getNext());
             while(n != nullptr) {
                 bool marked = getMark(n->getNext());
-                if(!marked) s++;
+                if(!marked) {
+                    //std::cout << "El:" << n->value << std::endl;
+                    s++;
+                }
                 n = getAdd(n->getNext());
             }
             return s;
@@ -255,14 +258,22 @@ public:
             return s;
         }
 };
-
+ListOriginal<int> list;
 
 void benchmark(int num_threads, int ops_per_thread) {
-    ListOriginal<int> list;
+    
+    ssmem.alloc(ALIGNMENT);
+    my_rand::init(42);
+    while (list.size() < 128){
+        int value = my_rand::get_rand()%256;
+        list.add(value, value);
+    }
+
+    std::cout << "List size before : " << list.size() << std::endl;
 
     auto worker = [&](int thread_id) {
         my_rand::init(thread_id);
-        
+        ssmem.alloc(ALIGNMENT);
         
         for (int i = 0; i < ops_per_thread; ++i) {
             
@@ -270,24 +281,27 @@ void benchmark(int num_threads, int ops_per_thread) {
             int op = my_rand::get_rand()%100;
             int value = my_rand::get_rand()%256;
 
-            if (op <= 50) {
+            if (op <= 50){
                 list.add(value, value);
+                
             } else {
                 list.remove(value);
             }
+            
         }
     };
 
     std::vector<std::thread> threads;
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < num_threads; ++i)
-        
+    for (int i = 0; i < num_threads; ++i){
         threads.emplace_back(worker, i);
+    }
 
     for (auto& t : threads)
         t.join();
 
+    //std::cout << "List size after : " << list.size() << std::endl;
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
     std::chrono::duration<double> duration_sec = end_time - start_time;
@@ -298,10 +312,10 @@ void benchmark(int num_threads, int ops_per_thread) {
               << "\nTime: " << duration.count() << " ms\n";
 
 
-              double elapsedSec = std::chrono::duration<double>(end_time - start_time).count();
+    double elapsedSec = std::chrono::duration<double>(end_time - start_time).count();
+    printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
 
-              printf("Throughput: %.2f ops/sec\n", totalOps / elapsedSec);
-
+    std::cout << "List size after : " << list.size() << std::endl;
 }
 
 
@@ -317,7 +331,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    int ops_per_thread = 100000;
+    int ops_per_thread = 1000000;
 
     benchmark(num_threads, ops_per_thread);
     return 0;
