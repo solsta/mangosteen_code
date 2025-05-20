@@ -351,7 +351,7 @@ instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers
     //numberOfWorkers = 30;
     for(int i=0; i < numberOfWorkers; i++){
         //printf("About to iterate over thread: %d\n", workerThreadIds[i]);
-         log_entries_for_given_thread(workerThreadIds[i]);
+         //log_entries_for_given_thread(workerThreadIds[i]);
     }
     void *drcontext = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);

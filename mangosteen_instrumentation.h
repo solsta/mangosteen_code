@@ -57,8 +57,8 @@ typedef struct serialized_app_command {
 /// APP SPECIFIC END
 
 struct thread_entry {
-    atomic_int_t ready;
-    //volatile int ready;
+    //atomic_int_t ready;
+    volatile int ready;
     char arr[124];
     //client *client;
     char arr2[120];

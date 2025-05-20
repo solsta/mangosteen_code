@@ -15,6 +15,7 @@ endif(NOT DynamoRIO_FOUND)
 
 add_subdirectory(instrumentation)
 add_subdirectory(examples/mangosteen_local)
+add_subdirectory(examples/harris_linked_list)
 add_subdirectory(examples/queue)
 add_subdirectory(examples/simple_test_app)
 add_subdirectory(examples/queue_benchmarks)

@@ -8,8 +8,8 @@ add_compile_options(
     -Wextra
     -Wno-uninitialized
     -Wno-unused-parameter
-    -Wl,-zdefs
-    -g
+    -Wl,-zdefs,
+    -O3
 )
 
 # Use modern C++ standard
