@@ -27,6 +27,12 @@
 #include <assert.h>
 #include <atomic>
 #include <bits/stdc++.h> 
+
+//#define RUN_WITH_MANGOSTEEN
+#define SM_OP_INSERT 0
+#define SM_OP_DELETE 1
+#define SM_OP_READ 2
+
 #define ALIGNMENT 128
 
 // The class code original code from https://github.com/cmuparlay/flit
@@ -260,6 +266,31 @@ public:
 };
 ListOriginal<int> list;
 
+
+
+
+bool isReadOnly(serialized_app_command *serializedAppCommand){
+    if(serializedAppCommand->op_type == SM_OP_READ){
+        return true;
+    }
+    return false;
+}
+
+
+
+void processRequest(serialized_app_command *serializedAppCommand){
+    
+
+    if(serializedAppCommand->op_type == SM_OP_INSERT){
+        list.add(serializedAppCommand->key, serializedAppCommand->key);
+    } else if(serializedAppCommand->op_type == SM_OP_DELETE){
+        list.remove(serializedAppCommand->key);
+    } else{
+        printf("Unknown command\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
 void benchmark(int num_threads, int ops_per_thread) {
     
     ssmem.alloc(ALIGNMENT);
@@ -271,22 +302,51 @@ void benchmark(int num_threads, int ops_per_thread) {
 
     std::cout << "List size before : " << list.size() << std::endl;
 
+
+#ifdef RUN_WITH_MANGOSTEEN
+mangosteen_args mangosteenArgs;
+mangosteenArgs.isReadOnly = &isReadOnly;
+mangosteenArgs.processRequest = &processRequest;
+mangosteenArgs.mode = MULTI_THREAD;
+
+initialise_mangosteen(&mangosteenArgs);
+printf("Mangosteen has initialized\n");
+#endif
+
     auto worker = [&](int thread_id) {
         my_rand::init(thread_id);
         ssmem.alloc(ALIGNMENT);
-        
+#ifdef RUN_WITH_MANGOSTEEN
+        mangosteen_args *mangosteenArgs;
+        initialise_mangosteen(mangosteenArgs);
+        serialized_app_command serializedAppCommand;
+#endif   
         for (int i = 0; i < ops_per_thread; ++i) {
-            
+
             
             int op = my_rand::get_rand()%100;
             int value = my_rand::get_rand()%256;
 
             if (op <= 50){
+#ifdef RUN_WITH_MANGOSTEEN
+                serializedAppCommand.key = value;
+                serializedAppCommand.op_type = SM_OP_INSERT;
+#else
                 list.add(value, value);
+#endif
                 
             } else {
+#ifdef RUN_WITH_MANGOSTEEN
+                serializedAppCommand.key = value;
+                serializedAppCommand.op_type = SM_OP_DELETE;
+#else
                 list.remove(value);
+#endif
+                
             }
+#ifdef RUN_WITH_MANGOSTEEN
+            clientCmd(&serializedAppCommand);
+#endif
             
         }
     };
