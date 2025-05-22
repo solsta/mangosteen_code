@@ -16,9 +16,9 @@
 //#define CONSUMER_SKIP_MMAP
 //#define TEST_WITHOUT_BACKEND
 //#define RUN_WITHOUT_CPU_SET
-#define RUN_WITHOUT_INSTRUMENTATION
+//#define RUN_WITHOUT_INSTRUMENTATION
 #define SKIP_CHECKPOINT
-#define RUN_WITHOUT_BACK_END //tryingthis one
+//#define RUN_WITHOUT_BACK_END //tryingthis one
 //#define DEBUG_FLAT_COMBINING
 //#define SPLIT_ALLOCATOR
 //#define DEBUG 1

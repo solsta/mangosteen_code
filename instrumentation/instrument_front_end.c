@@ -369,10 +369,10 @@ instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers
 
     ring_buffer_commit_enqueued_entries(data->pmem_buffer, &data->thread_local_head, &data->thread_local_tail);
 
-    set_global_head_value(0,data->pmem_buffer );
-    set_global_tail_value(0,data->pmem_buffer);
-    //set_global_head_value(data->thread_local_head,data->pmem_buffer );
-    //set_global_tail_value(data->thread_local_tail, data->pmem_buffer);
+    //set_global_head_value(0,data->pmem_buffer );
+    //set_global_tail_value(0,data->pmem_buffer);
+    set_global_head_value(data->thread_local_head,data->pmem_buffer );
+    set_global_tail_value(data->thread_local_tail, data->pmem_buffer);
 
     //dr_fprintf(STDERR,"Done\n");
 }
