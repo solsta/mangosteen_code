@@ -291,12 +291,15 @@ void processRequest(serialized_app_command *serializedAppCommand){
     }
 }
 
+#define INITIAL_LIST_SIZE 4096
+#define KEY_RANGE 8192
+
 void benchmark(int num_threads, int ops_per_thread) {
     
     ssmem.alloc(ALIGNMENT);
     my_rand::init(42);
-    while (list.size() < 128){
-        int value = my_rand::get_rand()%256;
+    while (list.size() < INITIAL_LIST_SIZE){
+        int value = my_rand::get_rand()%KEY_RANGE;
         list.add(value, value);
     }
 
@@ -325,7 +328,7 @@ printf("Mangosteen has initialized\n");
 
             
             int op = my_rand::get_rand()%100;
-            int value = my_rand::get_rand()%256;
+            int value = my_rand::get_rand()%KEY_RANGE;
 
             if (op <= 50){
 #ifdef RUN_WITH_MANGOSTEEN

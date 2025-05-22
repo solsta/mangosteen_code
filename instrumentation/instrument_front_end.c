@@ -324,7 +324,7 @@ instrument_get_thread_id(int *arg){
     *arg = data->threadId;
 }
 
-void log_entries_for_given_thread(int threadId){
+void log_entries_for_given_thread(per_thread_t *data, int threadId){
     int offset = 8*threadId*HASH_SET_SIZE;
     int start_index = offset;
     //printf("Start index:%d\n", start_index);
@@ -334,9 +334,14 @@ void log_entries_for_given_thread(int threadId){
         uint64_t raw;
         void *locationOfPointer = &buffer_for_hash_sets_for_all_threads[start_index+i*8];
         memcpy(&raw, locationOfPointer, 8);
-        if(raw != 0){
+        if(raw != 0 && raw > 10000){
             void* ptr = (void*)(uintptr_t)raw;
             //printf("Collected address: %p\n", ptr);
+            ring_buffer_enqueue_redo_log_entry(data->pmem_buffer,
+                                                   ptr, &data->thread_local_head,
+                                                   &data->thread_local_tail);
+        
+
             entries_for_given_thread++;
         }
         counter++;
@@ -349,13 +354,26 @@ DR_EXPORT static void
 instrument_complete_combiner_procedure(int *workerThreadIds, int numberOfWorkers){
     //dr_fprintf(STDERR,"Combiner is about to iterate over hash sets for entries:\n");
     //numberOfWorkers = 30;
-    for(int i=0; i < numberOfWorkers; i++){
-        //printf("About to iterate over thread: %d\n", workerThreadIds[i]);
-         log_entries_for_given_thread(workerThreadIds[i]);
-    }
+
     void *drcontext = dr_get_current_drcontext();
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_index);
+    data->thread_local_head = get_global_head_value(ringBuffer);
+    data->thread_local_tail = get_global_tail_value(ringBuffer);
+
+    for(int i=0; i < numberOfWorkers; i++){
+        //printf("About to iterate over thread: %d\n", workerThreadIds[i]);
+         log_entries_for_given_thread(data, workerThreadIds[i]);
+    }
     *data->number_of_hash_set_entries = 0;
+
+
+    ring_buffer_commit_enqueued_entries(data->pmem_buffer, &data->thread_local_head, &data->thread_local_tail);
+
+    set_global_head_value(0,data->pmem_buffer );
+    set_global_tail_value(0,data->pmem_buffer);
+    //set_global_head_value(data->thread_local_head,data->pmem_buffer );
+    //set_global_tail_value(data->thread_local_tail, data->pmem_buffer);
+
     //dr_fprintf(STDERR,"Done\n");
 }
 
